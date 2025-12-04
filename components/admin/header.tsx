@@ -16,7 +16,7 @@ export function AdminHeader() {
           <div className="flex items-center gap-2">
             <span className="text-lg font-semibold">Biryani</span>
             <Image
-              src="/logo.png"
+              src="/biryani.webp"
               alt="Meal"
               width={32}
               height={32}

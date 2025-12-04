@@ -31,7 +31,7 @@ export default function UserDashboard() {
             <div className="flex items-center gap-2 text-2xl font-semibold">
               <span>Biryani</span>
               <Image
-                src="/logo.png"
+                src="/biryani.webp"
                 alt="Meal"
                 width={40}
                 height={40}
