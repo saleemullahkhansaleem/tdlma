@@ -1,5 +1,7 @@
+"use client";
+
 import UserDashboard from "@/components/user-dashboard";
 
-export default function Home() {
+export default function UserDashboardPage() {
   return <UserDashboard />;
 }
