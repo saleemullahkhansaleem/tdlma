@@ -11,9 +11,9 @@ export type AttendanceRow = {
 };
 
 const ROW_BORDER_CLASSES = {
-  "all-clear": "border-green-300",
-  unclosed: "border-red-300",
-  unopened: "border-orange-300",
+  "all-clear": "border-primary",
+  unclosed: "border-destructive",
+  unopened: "border-secondary",
 } as const;
 
 export function AttendanceList({ rows }: { rows: AttendanceRow[] }) {
@@ -22,7 +22,7 @@ export function AttendanceList({ rows }: { rows: AttendanceRow[] }) {
       {rows.map((row) => (
         <Card
           key={row.name}
-          className={`rounded-2xl border-2 ${ROW_BORDER_CLASSES[row.remark]}`}
+          className={`rounded-md ${ROW_BORDER_CLASSES[row.remark]}`}
         >
           <CardContent className="px-4 py-3 flex items-center justify-between gap-3 text-sm">
             <div className="font-medium uppercase tracking-tight">

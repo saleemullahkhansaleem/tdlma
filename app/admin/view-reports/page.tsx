@@ -22,7 +22,7 @@ const consumers = Array.from({ length: 4 }, (_, i) => ({
 
 function ConsumerCard() {
   return (
-    <Card className="rounded-2xl border-2 border-green-300">
+    <Card className="border-primary">
       <CardContent className="p-4 text-sm space-y-1">
         <div className="flex justify-between">
           <span className="text-muted-foreground">Name</span>
@@ -79,7 +79,6 @@ export default function ViewReportsPage() {
         {metrics.map((m) => (
           <Card
             key={m.label}
-            className="rounded-2xl border border-border bg-card shadow-sm"
           >
             <CardContent className="p-4 flex flex-col items-center gap-2">
               <div className="flex h-12 w-full items-center justify-center rounded-lg bg-secondary text-2xl font-semibold text-secondary-foreground">
@@ -93,7 +92,7 @@ export default function ViewReportsPage() {
 
       <section className="space-y-3">
         <h2 className="text-base font-semibold">Consumers Details:</h2>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {consumers.map((c, idx) => (
             <ConsumerCard key={c.id} />
           ))}

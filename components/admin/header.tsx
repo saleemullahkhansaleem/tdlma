@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { Avatar } from "@/components/ui/avatar";
+import { ThemeToggle } from "../theme-toggle";
 
 export function AdminHeader() {
   const { user } = useAuth();
@@ -26,6 +27,7 @@ export function AdminHeader() {
       </div>
 
       <div className="flex items-center gap-3">
+        <ThemeToggle size="icon" variant="ghost" />
         <div className="text-right text-sm leading-tight">
           <p className="font-medium">{user?.name ?? "Admin"}</p>
         </div>

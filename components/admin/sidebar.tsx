@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
 import {
   LayoutGrid,
   UtensilsCrossed,
@@ -11,8 +10,22 @@ import {
   BarChart2,
   Settings,
   LogOut,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import {
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarFooter,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuAction,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
 
 const navItems = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutGrid },
@@ -22,7 +35,7 @@ const navItems = [
   { href: "/admin/view-reports", label: "View Reports", icon: BarChart2 },
 ];
 
-export function Sidebar({
+export function AdminSidebar({
   pathname,
   onNavigate,
 }: {
@@ -30,58 +43,88 @@ export function Sidebar({
   onNavigate?: () => void;
 }) {
   const { logout } = useAuth();
+  const { isCollapsed, toggleCollapsed } = useSidebar();
 
   return (
-    <div className="flex h-full flex-col justify-between bg-card">
-      <div className="px-6 pt-6">
-        <div className="flex items-center gap-2 mb-8">
-          <Image src="/logo.svg" alt="TDLMA" width={32} height={32} />
-          <span className="text-xl font-semibold text-primary leading-none">
-            Logo
-          </span>
+    <Sidebar>
+      <SidebarHeader>
+        <div className="flex w-full items-center gap-2">
+          <Image
+            src="/logo.svg"
+            alt="TDLMA"
+            width={32}
+            height={32}
+            className="shrink-0"
+          />
+          {!isCollapsed && (
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-primary leading-tight">
+                TD-LMA
+              </span>
+              <span className="text-[10px] text-muted-foreground leading-tight">
+                Lunch Management
+              </span>
+            </div>
+          )}
         </div>
+      </SidebarHeader>
 
-        <nav className="space-y-1 text-sm">
+      <SidebarContent>
+        <SidebarMenu>
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = pathname?.startsWith(item.href);
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onNavigate}
-                className={cn(
-                  "flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-primary/10 text-primary border-l-4 border-primary"
-                    : "text-muted-foreground hover:bg-muted/60",
-                )}
-              >
-                <Icon className="size-4" />
-                <span>{item.label}</span>
-              </Link>
+              <SidebarMenuItem key={item.href}>
+                <Link href={item.href} onClick={onNavigate} className="block">
+                  <SidebarMenuButton
+                    isActive={active}
+                    tooltip={item.label}
+                    className="w-full"
+                  >
+                    <Icon className="size-4 shrink-0" />
+                    {!isCollapsed && <span>{item.label}</span>}
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
             );
           })}
-        </nav>
-      </div>
+        </SidebarMenu>
+      </SidebarContent>
 
-      <div className="px-6 pb-6 space-y-2 text-sm text-muted-foreground">
-        <button
-          type="button"
-          className="flex w-full items-center gap-3 rounded-full px-3 py-2.5 hover:bg-muted/60"
-        >
-          <Settings className="size-4" />
-          <span>Settings</span>
-        </button>
-        <button
-          type="button"
-          onClick={logout}
-          className="flex w-full items-center gap-3 rounded-full px-3 py-2.5 hover:bg-muted/60"
-        >
-          <LogOut className="size-4" />
-          <span>Logout</span>
-        </button>
-      </div>
-    </div>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <Link href="/admin/settings" className="block">
+              <SidebarMenuAction tooltip="Settings">
+                <Settings className="size-4 shrink-0" />
+                {!isCollapsed && <span>Settings</span>}
+              </SidebarMenuAction>
+            </Link>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuAction onClick={logout} tooltip="Logout">
+              <LogOut className="size-4 shrink-0" />
+              {!isCollapsed && <span>Logout</span>}
+            </SidebarMenuAction>
+          </SidebarMenuItem>
+          <SidebarMenuItem className="mt-2 pt-2 border-t">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleCollapsed}
+              className="w-full h-9"
+              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isCollapsed ? (
+                <ChevronRight className="size-4" />
+              ) : (
+                <ChevronLeft className="size-4" />
+              )}
+            </Button>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   );
 }

@@ -8,7 +8,7 @@ const oddWeek = ["Tuesday", "Monday", "Wednesday", "Thursday", "Friday", "Saturd
 
 function MenuCard({ day }: { day: string }) {
   return (
-    <Card className="rounded-2xl border-2 border-orange-300 bg-card">
+    <Card className="border-secondary">
       <CardContent className="p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between gap-4">
           <div className="space-y-1 text-sm">
@@ -16,8 +16,8 @@ function MenuCard({ day }: { day: string }) {
             <p className="text-muted-foreground">Menu: BIRYANI</p>
           </div>
           <Image
-            src="/logo.png"
-            alt="Meal"
+            src="/biryani.webp"
+            alt="Biryani"
             width={64}
             height={64}
             className="rounded-full border border-border object-cover"
@@ -38,7 +38,7 @@ export default function AdminMenuPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-muted-foreground">Week Even:</h2>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {evenWeek.map((day) => (
             <MenuCard key={day} day={day} />
           ))}
@@ -47,7 +47,7 @@ export default function AdminMenuPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-muted-foreground">Week Odd:</h2>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {oddWeek.map((day) => (
             <MenuCard key={day} day={day} />
           ))}

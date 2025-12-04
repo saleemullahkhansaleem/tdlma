@@ -30,20 +30,20 @@ function StatusColumn({
 }) {
   const border =
     color === "green"
-      ? "border-emerald-300"
+      ? "border-primary"
       : color === "red"
-        ? "border-red-300"
-        : "border-orange-300";
+        ? "border-destructive"
+        : "border-secondary";
 
   const headerBg =
     color === "green"
-      ? "bg-emerald-50 text-emerald-700"
+      ? "bg-primary/10 text-primary"
       : color === "red"
-        ? "bg-red-50 text-red-700"
-        : "bg-orange-50 text-orange-700";
+        ? "bg-destructive/10 text-destructive"
+        : "bg-secondary/10 text-secondary";
 
   return (
-    <Card className={`rounded-2xl border-2 ${border}`}>
+    <Card className={`rounded-md ${border}`}>
       <CardContent className="p-4">
         <div
           className={`inline-flex rounded-full px-4 py-1 text-xs font-semibold ${headerBg}`}
