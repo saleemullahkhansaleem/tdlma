@@ -14,6 +14,8 @@ import {
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { useState } from "react";
+import Link from "next/link";
+import { MessageSquare } from "lucide-react";
 
 export default function UserDashboard() {
   const { user, logout } = useAuth();
@@ -41,7 +43,17 @@ export default function UserDashboard() {
           </div>
 
           <div className="flex items-center gap-3">
-
+            <Link href="/user/feedback">
+              <Button variant="outline" size="sm" className="rounded-full">
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Feedback
+              </Button>
+            </Link>
+            <Link href="/user/my-feedback">
+              <Button variant="ghost" size="sm" className="rounded-full">
+                My Feedback
+              </Button>
+            </Link>
             <ThemeToggle size="icon" variant="ghost" />
             <div className="text-right text-sm leading-tight">
               <p className="font-medium">{user?.name ?? "User"}</p>

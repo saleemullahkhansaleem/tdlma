@@ -21,22 +21,6 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-// Simple mock users; replace with real API later
-const MOCK_USERS: AppUser[] = [
-  {
-    id: "1",
-    name: "Admin User",
-    email: "admin@example.com",
-    role: "admin",
-  },
-  {
-    id: "2",
-    name: "Regular User",
-    email: "user@example.com",
-    role: "user",
-  },
-];
-
 const STORAGE_KEY = "tdlma_auth_user";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -75,22 +59,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function login(email: string, password: string) {
     setLoading(true);
-    // Simulate API call; later call Node/Express backend here
-    await new Promise((r) => setTimeout(r, 500));
 
-    const found = MOCK_USERS.find((u) => u.email === email.trim().toLowerCase());
-    if (!found) {
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Login failed" }));
+        throw new Error(error.error || "Invalid credentials");
+      }
+
+      const userData = await response.json();
+
+      // Map database user to AppUser format
+      const appUser: AppUser = {
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role,
+      };
+
+      setUser(appUser);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appUser));
+      }
+
+      if (appUser.role === "admin") router.replace("/admin/dashboard");
+      else router.replace("/");
+    } catch (error: any) {
       setLoading(false);
-      throw new Error("Invalid credentials");
+      throw error;
     }
-
-    setUser(found);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(found));
-    }
-
-    if (found.role === "admin") router.replace("/admin/dashboard");
-    else router.replace("/");
 
     setLoading(false);
   }
