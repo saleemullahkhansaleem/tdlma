@@ -130,7 +130,7 @@ export function MenuEditModal({
               placeholder="e.g., BIRYANI, DAAL CHANNA"
               value={menuItem.name}
               onChange={(e) =>
-                setMenuItem({ ...menuItem, name: e.target.value.toUpperCase() })
+                setMenuItem({ ...menuItem, name: e.target.value })
               }
               required
             />

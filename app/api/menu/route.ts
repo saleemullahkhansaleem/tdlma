@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, menus } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware/auth";
+import { requireAdmin, requireAuth } from "@/lib/middleware/auth";
 import { CreateMenuDto } from "@/lib/types/menu";
 import { eq, and } from "drizzle-orm";
 
@@ -71,7 +71,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const admin = requireAdmin(request);
+    // Allow authenticated users (not just admins) to read menus
+    const user = requireAuth(request);
     const { searchParams } = new URL(request.url);
 
     const weekType = searchParams.get("weekType");
