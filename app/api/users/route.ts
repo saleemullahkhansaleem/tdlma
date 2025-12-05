@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, users } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware/auth";
+import { requireSuperAdmin } from "@/lib/middleware/auth";
 import { CreateUserDto } from "@/lib/types/user";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 export async function POST(request: NextRequest) {
   try {
-    const admin = requireAdmin(request);
+    const superAdmin = requireSuperAdmin(request);
     const body: CreateUserDto = await request.json();
 
     // Validate required fields
@@ -19,9 +19,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate role
-    if (body.role !== "user" && body.role !== "admin") {
+    if (
+      body.role !== "user" &&
+      body.role !== "admin" &&
+      body.role !== "super_admin"
+    ) {
       return NextResponse.json(
-        { error: "Role must be 'user' or 'admin'" },
+        { error: "Role must be 'user', 'admin', or 'super_admin'" },
         { status: 400 }
       );
     }
@@ -76,7 +80,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const admin = requireAdmin(request);
+    const superAdmin = requireSuperAdmin(request);
 
     // Get all users (admin only)
     const allUsers = await db.select().from(users).orderBy(users.createdAt);

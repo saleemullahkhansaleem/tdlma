@@ -13,6 +13,7 @@ export function getAuthUser(request: NextRequest): AppUser | null {
   const userRole = request.headers.get("x-user-role") as
     | "user"
     | "admin"
+    | "super_admin"
     | null;
 
   if (!userId || !userEmail || !userName || !userRole) {
@@ -37,8 +38,17 @@ export function requireAuth(request: NextRequest): AppUser {
 
 export function requireAdmin(request: NextRequest): AppUser {
   const user = requireAuth(request);
-  if (user.role !== "admin") {
+  // Both admin and super_admin have admin permissions
+  if (user.role !== "admin" && user.role !== "super_admin") {
     throw new Error("Forbidden: Admin access required");
+  }
+  return user;
+}
+
+export function requireSuperAdmin(request: NextRequest): AppUser {
+  const user = requireAuth(request);
+  if (user.role !== "super_admin") {
+    throw new Error("Forbidden: Super admin access required");
   }
   return user;
 }

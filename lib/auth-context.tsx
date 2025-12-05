@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
-export type UserRole = "user" | "admin";
+export type UserRole = "user" | "admin" | "super_admin";
 
 export type AppUser = {
   id: string;
@@ -52,8 +52,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Redirect based on role from login or direct visits
     if (pathname === "/" || pathname === "/login") {
-      if (user.role === "admin") router.replace("/admin/dashboard");
-      else router.replace("/");
+      if (user.role === "admin" || user.role === "super_admin") {
+        router.replace("/admin/dashboard");
+      } else {
+        router.replace("/");
+      }
     }
   }, [user, loading, pathname, router]);
 
@@ -89,8 +92,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(appUser));
       }
 
-      if (appUser.role === "admin") router.replace("/admin/dashboard");
-      else router.replace("/");
+      if (appUser.role === "admin" || appUser.role === "super_admin") {
+        router.replace("/admin/dashboard");
+      } else {
+        router.replace("/");
+      }
     } catch (error: any) {
       setLoading(false);
       throw error;

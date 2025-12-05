@@ -1,25 +1,77 @@
 "use client";
 
-import { useState } from "react";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-const INVITERS = ["Ali Khan Swati", "Hassan Khan Swati", "Muhib Khan Swati"];
+import { useAuth } from "@/lib/auth-context";
+import { getAllUsers } from "@/lib/api/client";
+import { createGuest } from "@/lib/api/client";
+import { User } from "@/lib/types/user";
+import { MealType } from "@/lib/types/attendance";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function AddGuestModal({
   open,
   onOpenChange,
+  date,
+  mealType,
+  onSuccess,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  date: string;
+  mealType: MealType;
+  onSuccess?: () => void;
 }) {
-  const [inviter, setInviter] = useState(INVITERS[0]);
-  const [count, setCount] = useState(2);
-  const [guestNames, setGuestNames] = useState<string[]>(["", ""]);
+  const { user: currentUser } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [inviterId, setInviterId] = useState<string>("");
+  const [count, setCount] = useState(1);
+  const [guestNames, setGuestNames] = useState<string[]>([""]);
+
+  // Load users when modal opens
+  useEffect(() => {
+    if (open && currentUser) {
+      loadUsers();
+    }
+  }, [open, currentUser]);
+
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!open) {
+      setInviterId("");
+      setCount(1);
+      setGuestNames([""]);
+      setError(null);
+    }
+  }, [open]);
+
+  const loadUsers = async () => {
+    if (!currentUser) return;
+
+    try {
+      const allUsers = await getAllUsers(currentUser);
+      const regularUsers = allUsers.filter((u) => u.role === "user");
+      setUsers(regularUsers);
+      if (regularUsers.length > 0 && !inviterId) {
+        setInviterId(regularUsers[0].id);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to load users");
+    }
+  };
 
   function handleCountChange(value: string) {
-    const numeric = Number(value) || 0;
+    const numeric = Math.max(1, Number(value) || 1);
     setCount(numeric);
     setGuestNames((prev) => {
       const next = [...prev];
@@ -40,49 +92,113 @@ export function AddGuestModal({
     });
   }
 
-  function handleAdd() {
-    // In future, call backend to persist
-    onOpenChange(false);
+  async function handleAdd() {
+    if (!currentUser) return;
+
+    setError(null);
+
+    // Validation
+    if (!inviterId) {
+      setError("Please select an inviter");
+      return;
+    }
+
+    if (guestNames.length === 0 || guestNames.every((name) => !name.trim())) {
+      setError("Please enter at least one guest name");
+      return;
+    }
+
+    // Filter out empty names
+    const validGuestNames = guestNames.filter((name) => name.trim());
+
+    if (validGuestNames.length === 0) {
+      setError("Please enter at least one guest name");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Create guests array
+      const guestsToCreate = validGuestNames.map((name) => ({
+        inviterId,
+        name: name.trim(),
+        date,
+        mealType,
+      }));
+
+      await createGuest(guestsToCreate, currentUser);
+
+      // Reset form
+      setInviterId(users.length > 0 ? users[0].id : "");
+      setCount(1);
+      setGuestNames([""]);
+      setError(null);
+
+      // Close modal and refresh attendance
+      onOpenChange(false);
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to add guests");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Guest</DialogTitle>
+          <DialogDescription>
+            Add guests for {date} - {mealType}
+          </DialogDescription>
         </DialogHeader>
+
+        {error && (
+          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
+          </div>
+        )}
+
         <div className="mt-4 space-y-4 text-sm">
-          <div className="space-y-1">
+          <div className="space-y-2">
             <label className="font-medium">Inviter</label>
-            <select
-              className="h-10 w-full rounded-full border border-input bg-background px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              value={inviter}
-              onChange={(e) => setInviter(e.target.value)}
-            >
-              {INVITERS.map((name) => (
-                <option key={name}>{name}</option>
-              ))}
-            </select>
+            <Select value={inviterId} onValueChange={setInviterId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select an inviter" />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="space-y-1">
-            <label className="font-medium">Guests Count</label>
+          <div className="space-y-2">
+            <label className="font-medium">Number of Guests</label>
             <Input
               type="number"
-              min={0}
-              value={count || ""}
+              min={1}
+              value={count}
               onChange={(e) => handleCountChange(e.target.value)}
             />
           </div>
 
           {guestNames.map((name, index) => (
-            <div key={index} className="space-y-1">
+            <div key={index} className="space-y-2">
               <label className="font-medium">Guest {index + 1} Name</label>
               <Input
                 type="text"
-                placeholder={`Guest ${index + 1} Name`}
+                placeholder={`Enter guest ${index + 1} name`}
                 value={name}
                 onChange={(e) => handleGuestNameChange(index, e.target.value)}
+                required
               />
             </div>
           ))}
@@ -93,6 +209,7 @@ export function AddGuestModal({
             variant="outline"
             className="rounded-full px-6"
             onClick={() => onOpenChange(false)}
+            disabled={loading}
           >
             Cancel
           </Button>
@@ -100,8 +217,9 @@ export function AddGuestModal({
             type="button"
             className="rounded-full px-6"
             onClick={handleAdd}
+            disabled={loading}
           >
-            Add
+            {loading ? "Adding..." : "Add Guests"}
           </Button>
         </DialogFooter>
       </DialogContent>

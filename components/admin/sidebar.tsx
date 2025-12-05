@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MessageSquare,
+  UserCog,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -37,6 +38,10 @@ const navItems = [
   { href: "/admin/feedback", label: "Feedback Management", icon: MessageSquare },
 ];
 
+const superAdminNavItems = [
+  { href: "/admin/users", label: "Users", icon: UserCog },
+];
+
 export function AdminSidebar({
   pathname,
   onNavigate,
@@ -44,8 +49,11 @@ export function AdminSidebar({
   pathname: string | null;
   onNavigate?: () => void;
 }) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const { isCollapsed, toggleCollapsed } = useSidebar();
+
+  const isSuperAdmin = user?.role === "super_admin";
+  const allNavItems = isSuperAdmin ? [...navItems, ...superAdminNavItems] : navItems;
 
   return (
     <Sidebar>
@@ -73,7 +81,7 @@ export function AdminSidebar({
 
       <SidebarContent>
         <SidebarMenu>
-          {navItems.map((item) => {
+          {allNavItems.map((item) => {
             const Icon = item.icon;
             const active = pathname?.startsWith(item.href);
             return (

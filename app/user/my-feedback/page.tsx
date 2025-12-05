@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MyFeedbackPage() {
   const { user, loading } = useAuth();
@@ -20,8 +21,20 @@ export default function MyFeedbackPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p>Loading...</p>
+      <div className="min-h-screen bg-muted px-4 py-6 md:px-8">
+        <div className="mx-auto max-w-4xl">
+          <div className="mb-6">
+            <Skeleton className="mb-4 h-9 w-32 rounded-full" />
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-40" />
+                <Skeleton className="h-4 w-64" />
+              </div>
+              <Skeleton className="h-10 w-40 rounded-full" />
+            </div>
+          </div>
+          <FeedbackList />
+        </div>
       </div>
     );
   }

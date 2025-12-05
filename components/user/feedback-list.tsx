@@ -5,7 +5,9 @@ import { useAuth } from "@/lib/auth-context";
 import { Feedback } from "@/lib/types/feedback";
 import { getUserFeedback } from "@/lib/api/client";
 import { FeedbackCard } from "./feedback-card";
+import { FeedbackCardSkeleton } from "./feedback-card-skeleton";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -73,8 +75,20 @@ export function FeedbackList() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-muted-foreground">Loading feedback...</p>
+      <div className="space-y-4">
+        {/* Filters Skeleton */}
+        <div className="flex flex-wrap gap-3 rounded-md border bg-card p-4">
+          <Skeleton className="h-10 flex-1 min-w-[150px]" />
+          <Skeleton className="h-10 flex-1 min-w-[150px]" />
+          <Skeleton className="h-10 flex-1 min-w-[150px]" />
+        </div>
+
+        {/* Feedback Cards Skeleton */}
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <FeedbackCardSkeleton key={i} />
+          ))}
+        </div>
       </div>
     );
   }

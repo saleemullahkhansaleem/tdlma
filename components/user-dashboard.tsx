@@ -15,7 +15,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { useState } from "react";
 import Link from "next/link";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, User, LogOut, FileText } from "lucide-react";
 
 export default function UserDashboard() {
   const { user, logout } = useAuth();
@@ -49,11 +49,6 @@ export default function UserDashboard() {
                 Feedback
               </Button>
             </Link>
-            <Link href="/user/my-feedback">
-              <Button variant="ghost" size="sm" className="rounded-full">
-                My Feedback
-              </Button>
-            </Link>
             <ThemeToggle size="icon" variant="ghost" />
             <div className="text-right text-sm leading-tight">
               <p className="font-medium">{user?.name ?? "User"}</p>
@@ -67,20 +62,29 @@ export default function UserDashboard() {
                   className="rounded-full"
                 >
                   <Avatar
-                    src="/logo.png"
                     alt={user?.name}
                     fallback={user?.name?.[0] ?? "U"}
                   />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem className="cursor-pointer">
-                  Profile
+                <DropdownMenuItem className="cursor-pointer" asChild>
+                  <Link href="/profile" className="flex items-center">
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer" asChild>
+                  <Link href="/user/my-feedback" className="flex items-center">
+                    <FileText className="mr-2 h-4 w-4" />
+                    My Feedback
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="cursor-pointer text-destructive focus:text-destructive"
                   onClick={logout}
                 >
+                  <LogOut className="mr-2 h-4 w-4" />
                   Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -152,8 +156,8 @@ export default function UserDashboard() {
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-7">
-            {["7", "1", "6", "2", "4", "3", "1700"].map((value, idx) => {
+          <div className="grid gap-3 md:grid-cols-8">
+            {["7", "1", "6", "2", "4", "3", "3", "1700"].map((value, idx) => {
               const labels = [
                 "Total Days",
                 "Sundays",
@@ -161,6 +165,7 @@ export default function UserDashboard() {
                 "Close",
                 "Open",
                 "Unclosed",
+                "Unopened",
                 "Total fine",
               ];
               return (

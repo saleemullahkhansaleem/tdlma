@@ -13,7 +13,7 @@ export default function AdminFeedbackPage() {
     if (!loading) {
       if (!user) {
         router.replace("/login");
-      } else if (user.role !== "admin") {
+      } else if (user.role !== "admin" && user.role !== "super_admin") {
         router.replace("/user/dashboard");
       }
     }
@@ -27,7 +27,7 @@ export default function AdminFeedbackPage() {
     );
   }
 
-  if (!user || user.role !== "admin") {
+  if (!user || !(user.role === "admin" || user.role === "super_admin")) {
     return null;
   }
 

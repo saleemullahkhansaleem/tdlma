@@ -22,7 +22,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       router.replace("/login");
       return;
     }
-    if (user.role !== "admin") {
+    if (user.role !== "admin" && user.role !== "super_admin") {
       router.replace("/user/dashboard");
     }
   }, [user, loading, router]);
@@ -56,11 +56,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
         {/* Main content */}
         <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
-          <header className="sticky top-0 z-30 shrink-0 border-b bg-muted/80 backdrop-blur">
-            <div className="flex h-14 items-center gap-4 px-4 md:px-6">
-              <AdminHeader />
-            </div>
-          </header>
+          <AdminHeader />
           <main className="flex-1 overflow-y-auto px-4 md:px-6 py-6">
             {children}
           </main>

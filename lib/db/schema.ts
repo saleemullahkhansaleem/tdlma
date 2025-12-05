@@ -13,7 +13,11 @@ import {
 } from "drizzle-orm/pg-core";
 
 // Enums
-export const userRoleEnum = pgEnum("user_role", ["user", "admin"]);
+export const userRoleEnum = pgEnum("user_role", [
+  "user",
+  "admin",
+  "super_admin",
+]);
 export const dayOfWeekEnum = pgEnum("day_of_week", [
   "Monday",
   "Tuesday",
@@ -90,7 +94,7 @@ export const attendance = pgTable("attendance", {
     .notNull(),
   date: date("date").notNull(),
   mealType: mealTypeEnum("meal_type").notNull(),
-  status: attendanceStatusEnum("status").notNull(),
+  status: attendanceStatusEnum("status"),
   remark: remarkEnum("remark"),
   fineAmount: decimal("fine_amount", { precision: 10, scale: 2 }).default("0"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
