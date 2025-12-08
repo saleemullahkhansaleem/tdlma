@@ -84,6 +84,11 @@ export async function PATCH(
       updateData.isOpen = body.isOpen;
     }
 
+    // Only admins can update fine amount
+    if (body.fineAmount !== undefined && isAdmin) {
+      updateData.fineAmount = body.fineAmount.toString();
+    }
+
     // Auto-generate remark ONLY if status is NOT null
     // If status is null, don't generate or update remark (clear it if it exists)
     const finalStatus =

@@ -38,4 +38,5 @@ export interface UpdateAttendanceDto {
   status?: AttendanceStatus | null;
   isOpen?: boolean;
   remark?: Remark | null;
+  fineAmount?: number; // Fine amount in decimal
 }
