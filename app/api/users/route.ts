@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
         email: body.email,
         passwordHash: passwordHash,
         role: body.role,
+        status: body.status || "Active",
         avatarUrl: body.avatarUrl || null,
       })
       .returning();

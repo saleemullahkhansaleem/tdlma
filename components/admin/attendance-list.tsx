@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,29 +12,71 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AttendanceWithUser } from "@/lib/types/attendance";
-import { createAttendance, updateAttendance, deleteAttendance } from "@/lib/api/client";
+import { createAttendance, updateAttendance, deleteAttendance, getSettings } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
 
 export interface AttendanceListProps {
   attendance: AttendanceWithUser[];
   onUpdate: () => void;
+  onItemUpdate?: (updatedItem: AttendanceWithUser) => void;
+  selectedDate: string;
 }
 
 const REMARK_COLORS = {
-  "All Clear": "bg-green-100 text-green-700 border-green-200",
-  Unclosed: "bg-red-100 text-red-700 border-red-200",
-  Unopened: "bg-orange-100 text-orange-700 border-orange-200",
+  "All Clear": "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800",
+  Unclosed: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800",
+  Unopened: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800",
 } as const;
 
 const STATUS_COLORS = {
-  open: "bg-green-100 text-green-700 border-green-200",
-  close: "bg-red-100 text-red-700 border-red-200",
+  open: "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800",
+  close: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800",
 } as const;
 
-export function AttendanceList({ attendance, onUpdate }: AttendanceListProps) {
+export function AttendanceList({ attendance, onUpdate, onItemUpdate, selectedDate }: AttendanceListProps) {
   const { user: currentUser } = useAuth();
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
+  const [closeTime, setCloseTime] = useState<string>("18:00");
+  const [isBeforeCloseTime, setIsBeforeCloseTime] = useState<boolean>(false);
+
+  // Get today's date in local timezone
+  const getLocalDateString = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  // Check if selected date is today and if current time is before closeTime
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (!currentUser) return;
+
+      try {
+        const settings = await getSettings(currentUser);
+        setCloseTime(settings.closeTime);
+
+        const todayString = getLocalDateString(new Date());
+        const isToday = selectedDate === todayString;
+
+        if (isToday) {
+          const now = new Date();
+          const [closeHour, closeMinute] = settings.closeTime.split(":").map(Number);
+          const closeTimeDate = new Date();
+          closeTimeDate.setHours(closeHour, closeMinute, 0, 0);
+
+          setIsBeforeCloseTime(now < closeTimeDate);
+        } else {
+          setIsBeforeCloseTime(false);
+        }
+      } catch (error) {
+        console.error("Failed to load settings:", error);
+      }
+    };
+
+    loadSettings();
+  }, [currentUser, selectedDate]);
   // Track which buttons are collapsed (showing single button)
   // By default, buttons are expanded (show two buttons) when status is null
   // When status is set, buttons are collapsed (show single button)
@@ -68,14 +110,33 @@ export function AttendanceList({ attendance, onUpdate }: AttendanceListProps) {
       setUpdatingIds((prev) => new Set(prev).add(key));
       try {
         if (attendanceId) {
-          // Update existing attendance to null status
-          await updateAttendance(
+          // Find the current item
+          const currentItem = attendance.find((a) => a.id === attendanceId);
+
+          // Optimistically update local state immediately
+          if (currentItem && onItemUpdate) {
+            onItemUpdate({
+              ...currentItem,
+              status: null,
+              remark: null,
+              updatedAt: new Date(),
+            });
+          }
+
+          // Then update in the background
+          updateAttendance(
             attendanceId,
             { status: null },
             currentUser
-          );
+          ).catch((error) => {
+            console.error("Failed to reset attendance:", error);
+            // On error, reload all data
+            onUpdate();
+          });
+        } else {
+          onUpdate();
         }
-        onUpdate();
+
         // Expand buttons (remove from collapsed set) to show both buttons
         setCollapsedButtons((prev) => {
           const next = new Set(prev);
@@ -84,6 +145,8 @@ export function AttendanceList({ attendance, onUpdate }: AttendanceListProps) {
         });
       } catch (error) {
         console.error("Failed to reset attendance:", error);
+        // On error, reload all data
+        onUpdate();
       } finally {
         setUpdatingIds((prev) => {
           const next = new Set(prev);
@@ -99,30 +162,124 @@ export function AttendanceList({ attendance, onUpdate }: AttendanceListProps) {
 
     setUpdatingIds((prev) => new Set(prev).add(key));
     try {
+      // Helper to calculate remark based on status and isOpen
+      const calculateRemark = (
+        status: "Present" | "Absent" | null,
+        isOpen: boolean
+      ): "All Clear" | "Unclosed" | "Unopened" | null => {
+        if (status === null) return null;
+        if (status === "Present" && isOpen) return "All Clear";
+        if (status === "Absent" && !isOpen) return "All Clear";
+        if (status === "Absent" && isOpen) return "Unclosed";
+        if (status === "Present" && !isOpen) return "Unopened";
+        return null;
+      };
+
       if (attendanceId) {
-        // Update existing attendance
-        await updateAttendance(
+        // Find the current item
+        const currentItem = attendance.find((a) => a.id === attendanceId);
+        const isOpen = currentItem?.isOpen ?? true;
+
+        // Optimistically update local state immediately
+        if (currentItem && onItemUpdate) {
+          const calculatedRemark = calculateRemark(newStatus, isOpen);
+          onItemUpdate({
+            ...currentItem,
+            status: newStatus,
+            remark: calculatedRemark,
+            updatedAt: new Date(),
+          });
+        }
+
+        // Then update in the background
+        updateAttendance(
           attendanceId,
           { status: newStatus },
           currentUser
-        );
+        ).catch((error) => {
+          console.error("Failed to update attendance:", error);
+          // On error, reload all data
+          onUpdate();
+        });
       } else {
-        // Create new attendance
-        await createAttendance(
-          {
+        // Find the user info from current attendance list
+        const currentItem = attendance.find((a) => a.userId === userId);
+        const isOpen = true; // New records default to open
+        const calculatedRemark = calculateRemark(newStatus, isOpen);
+
+        // Optimistically add the new item if we have user info
+        if (currentItem && onItemUpdate) {
+          const newItem: AttendanceWithUser = {
+            id: `temp-${Date.now()}`, // Temporary ID
             userId,
             date,
             mealType: mealType as any,
             status: newStatus,
-          },
-          currentUser
-        );
+            isOpen: true,
+            remark: calculatedRemark,
+            fineAmount: "0",
+            user: currentItem.user,
+            guestCount: currentItem.guestCount || 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+          onItemUpdate(newItem);
+
+          // Then create in the background (non-blocking)
+          createAttendance(
+            {
+              userId,
+              date,
+              mealType: mealType as any,
+              status: newStatus,
+            },
+            currentUser
+          )
+            .then((response) => {
+              // Update with real ID and data from server
+              onItemUpdate({
+                ...newItem,
+                id: response.id,
+                status: newStatus,
+                remark: response.remark || calculatedRemark,
+                isOpen: response.isOpen ?? true,
+                fineAmount: response.fineAmount || "0",
+                createdAt: response.createdAt,
+                updatedAt: response.updatedAt,
+              });
+            })
+            .catch((error) => {
+              console.error("Failed to create attendance:", error);
+              // On error, reload all data
+              onUpdate();
+            });
+        } else {
+          // If we don't have the item, create and reload
+          createAttendance(
+            {
+              userId,
+              date,
+              mealType: mealType as any,
+              status: newStatus,
+            },
+            currentUser
+          )
+            .then(() => {
+              onUpdate();
+            })
+            .catch((error) => {
+              console.error("Failed to create attendance:", error);
+              onUpdate();
+            });
+        }
       }
-      onUpdate();
+
       // Collapse buttons after update (add to collapsed set)
       setCollapsedButtons((prev) => new Set(prev).add(key));
     } catch (error) {
       console.error("Failed to update attendance:", error);
+      // On error, reload all data
+      onUpdate();
     } finally {
       setUpdatingIds((prev) => {
         const next = new Set(prev);
@@ -170,6 +327,11 @@ export function AttendanceList({ attendance, onUpdate }: AttendanceListProps) {
     const isCollapsed = collapsedButtons.has(key);
     const isUpdating = updatingIds.has(key);
 
+    // Disable buttons if date is today and current time is before closeTime
+    const todayString = getLocalDateString(new Date());
+    const isToday = date === todayString;
+    const buttonsDisabled = isToday && isBeforeCloseTime;
+
     // If status is null or buttons are expanded, show both buttons
     if (currentStatus === null || !isCollapsed) {
       return (
@@ -188,7 +350,8 @@ export function AttendanceList({ attendance, onUpdate }: AttendanceListProps) {
                 mealType
               )
             }
-            disabled={isUpdating}
+            disabled={isUpdating || buttonsDisabled}
+            title={buttonsDisabled ? `Attendance can only be marked after ${closeTime}` : ""}
           >
             Present
           </Button>
@@ -206,7 +369,8 @@ export function AttendanceList({ attendance, onUpdate }: AttendanceListProps) {
                 mealType
               )
             }
-            disabled={isUpdating}
+            disabled={isUpdating || buttonsDisabled}
+            title={buttonsDisabled ? `Attendance can only be marked after ${closeTime}` : ""}
           >
             Absent
           </Button>
@@ -217,12 +381,9 @@ export function AttendanceList({ attendance, onUpdate }: AttendanceListProps) {
       return (
         <Button
           size="sm"
-          variant={currentStatus === "Present" ? "default" : "outline"}
+          variant={currentStatus === "Present" ? "default" : "destructive"}
           className={cn(
-            "h-7 rounded-full px-4 text-xs min-w-[84px]",
-            currentStatus === "Present"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground"
+            " text-xs min-w-[84px]",
           )}
           onClick={() =>
             handleAttendanceClick(
@@ -234,7 +395,8 @@ export function AttendanceList({ attendance, onUpdate }: AttendanceListProps) {
               mealType
             )
           }
-          disabled={isUpdating}
+          disabled={isUpdating || buttonsDisabled}
+          title={buttonsDisabled ? `Attendance can only be marked after ${closeTime}` : ""}
         >
           {currentStatus}
         </Button>
@@ -258,9 +420,10 @@ export function AttendanceList({ attendance, onUpdate }: AttendanceListProps) {
             const status: "Present" | "Absent" | null =
               item.status === "Present" || item.status === "Absent" ? item.status : null;
             const remark = item.remark || null;
-            // Determine status badge (open/close) based on remark
-            // "Unclosed" means close, otherwise open
-            const statusBadge = remark === "Unclosed" ? "close" : "open";
+
+            // Determine status badge (open/close) based on isOpen field
+            const isOpen = item.isOpen ?? true;
+            const statusBadge: "open" | "close" = isOpen ? "open" : "close";
 
             return (
               <TableRow key={item.userId}>

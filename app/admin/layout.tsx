@@ -29,7 +29,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full overflow-hidden bg-muted">
+      <div className="flex h-screen w-full overflow-hidden bg-muted/30">
         {/* Desktop sidebar */}
         <aside className="hidden md:block shrink-0">
           <AdminSidebar pathname={pathname} />

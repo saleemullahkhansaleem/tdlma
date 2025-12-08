@@ -17,10 +17,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import Link from "next/link";
 import { MessageSquare, User, LogOut, FileText } from "lucide-react";
 import { TodayMenu } from "@/components/today-menu";
-import { getAllMenus, getAttendance } from "@/lib/api/client";
+import { getAllMenus, getAttendance, updateAttendance, createAttendance, getSettings } from "@/lib/api/client";
 import { Menu, DayOfWeek, WeekType } from "@/lib/types/menu";
 import { AttendanceWithUser } from "@/lib/types/attendance";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DashboardFilters } from "@/components/user/dashboard-filters";
+import { FilterType } from "@/lib/utils/date-filters";
+import { DashboardStats } from "@/components/user/dashboard-stats";
+import {
+  getFilterDates,
+  getDayOfWeek,
+  formatDateLabel,
+} from "@/lib/utils/date-filters";
 
 function getWeekNumber(date: Date): number {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -30,69 +38,9 @@ function getWeekNumber(date: Date): number {
   return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 }
 
-function getDayOfWeek(date: Date): DayOfWeek | null {
-  const dayIndex = date.getDay();
-  if (dayIndex === 0) return null; // Sunday - no menu
-  const days: DayOfWeek[] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  return days[dayIndex - 1] || null;
-}
-
 function getWeekType(date: Date): WeekType {
   const weekNumber = getWeekNumber(date);
   return weekNumber % 2 === 0 ? "Even" : "Odd";
-}
-
-function getMondayOfWeek(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-  return new Date(d.setDate(diff));
-}
-
-function getWeekDates(): Date[] {
-  const monday = getMondayOfWeek(new Date());
-  const week: Date[] = [];
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(monday);
-    date.setDate(monday.getDate() + i);
-    week.push(date);
-  }
-  return week;
-}
-
-function formatDateLabel(date: Date): { day: string; sub: string } {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dateCopy = new Date(date);
-  dateCopy.setHours(0, 0, 0, 0);
-
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  const dayNames = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-  const dayName = dayNames[date.getDay()];
-  const formattedDate = date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-
-  let sub = "";
-  if (dateCopy.getTime() === today.getTime()) {
-    sub = "Today";
-  } else if (dateCopy.getTime() === yesterday.getTime()) {
-    sub = "Yesterday";
-  } else if (dateCopy.getTime() === tomorrow.getTime()) {
-    sub = "Tomorrow";
-  }
-
-  return {
-    day: `${dayName}, ${formattedDate}`,
-    sub,
-  };
 }
 
 interface TimetableRow {
@@ -104,42 +52,109 @@ interface TimetableRow {
   menuImage: string;
   status: "Open" | "Close" | "-";
   action: string;
+  remark: string | null;
+  attendanceId: string | null;
+  canToggle: boolean; // Whether user can toggle open/close
+}
+
+interface DashboardStatsData {
+  totalDays: number;
+  sundays: number;
+  workDays: number;
+  close: number;
+  open: number;
+  unclosed: number;
+  unopened: number;
+  totalFine: number;
 }
 
 export default function UserDashboard() {
   const { user, logout } = useAuth();
-  const [fineAmount, setFineAmount] = useState({ unclosed: 100, unopened: 50 });
+  const [settings, setSettings] = useState({
+    closeTime: "18:00",
+    fineAmountUnclosed: 0,
+    fineAmountUnopened: 0,
+    disabledDates: [] as string[],
+  });
+  const [selectedFilter, setSelectedFilter] = useState<FilterType>("This Week");
   const [timetableRows, setTimetableRows] = useState<TimetableRow[]>([]);
+  const [stats, setStats] = useState<DashboardStatsData>({
+    totalDays: 0,
+    sundays: 0,
+    workDays: 0,
+    close: 0,
+    open: 0,
+    unclosed: 0,
+    unopened: 0,
+    totalFine: 0,
+  });
+  const [togglingDates, setTogglingDates] = useState<Set<string>>(new Set());
   const [loadingTimetable, setLoadingTimetable] = useState(true);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [loadingSettings, setLoadingSettings] = useState(true);
+
+  // Load settings
+  useEffect(() => {
+    const loadSettingsData = async () => {
+      if (!user) return;
+
+      try {
+        setLoadingSettings(true);
+        const settingsData = await getSettings(user);
+        setSettings({
+          closeTime: settingsData.closeTime,
+          fineAmountUnclosed: settingsData.fineAmountUnclosed,
+          fineAmountUnopened: settingsData.fineAmountUnopened,
+          disabledDates: settingsData.disabledDates,
+        });
+      } catch (error) {
+        console.error("Failed to load settings:", error);
+      } finally {
+        setLoadingSettings(false);
+      }
+    };
+
+    loadSettingsData();
+  }, [user]);
 
   useEffect(() => {
     const loadTimetable = async () => {
       if (!user) {
         setLoadingTimetable(false);
+        setLoadingStats(false);
         return;
       }
 
       try {
-        const weekDates = getWeekDates();
-        const weekMenus: Menu[] = [];
-        const weekAttendance: AttendanceWithUser[] = [];
+        setLoadingTimetable(true);
+        setLoadingStats(true);
 
-        // Fetch all menus for the week
+        const filterDates = getFilterDates(selectedFilter);
+
+        // Fetch all menus (we'll filter by day and week type)
         const allMenus = await getAllMenus(user);
 
-        // Fetch attendance for each day (Lunch meal type)
-        const attendancePromises = weekDates.map((date) =>
+        // Fetch attendance for all dates in parallel (Lunch meal type)
+        // Group dates by unique dates to avoid duplicate API calls
+        const uniqueDates = Array.from(
+          new Set(filterDates.map((d) => d.toISOString().split("T")[0]))
+        );
+
+        const attendancePromises = uniqueDates.map((dateString) =>
           getAttendance(user, {
-            date: date.toISOString().split("T")[0],
+            date: dateString,
             mealType: "Lunch",
           }).catch(() => [])
         );
         const attendanceResults = await Promise.all(attendancePromises);
         const allAttendance = attendanceResults.flat();
 
+        // Filter to get only current user's attendance
+        const userAttendance = allAttendance.filter((a) => a.userId === user.id);
+
         // Build timetable rows
-        const rows: TimetableRow[] = weekDates.map((date) => {
-          const dateString = date.toISOString().split("T")[0];
+        const rows: TimetableRow[] = filterDates.map((date) => {
+          const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
           const { day: dayLabel, sub: subLabel } = formatDateLabel(date);
           const dayOfWeek = getDayOfWeek(date);
           const weekType = getWeekType(date);
@@ -159,42 +174,82 @@ export default function UserDashboard() {
           }
 
           // Find attendance for this user on this date
-          const userAttendance = allAttendance.find(
-            (a) => a.userId === user.id && a.date === dateString && a.mealType === "Lunch"
+          const dayAttendance = userAttendance.find(
+            (a) => a.date === dateString && a.mealType === "Lunch"
           );
 
-          // Determine status based on remark and attendance status
+          // Determine status based on isOpen field (defaults to true/open)
           let status: "Open" | "Close" | "-" = "-";
           let action = "";
+          let remark: string | null = null;
+          let canToggle = false;
+
+          // Get today's date (without time)
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+          const isToday = dateString === todayString;
+
+          // Compare dates without time
+          const dateOnly = new Date(date);
+          dateOnly.setHours(0, 0, 0, 0);
+          const isPast = dateOnly < today && !isToday;
+          const isFuture = dateOnly > today;
+
+          // Check if date is disabled
+          const isDisabled = settings.disabledDates.includes(dateString);
 
           if (!dayOfWeek) {
             // Sunday - no menu, no status
             status = "-";
             action = "";
-          } else if (userAttendance) {
-            const remark = userAttendance.remark;
-            // Priority: remark over status
-            if (remark === "Unclosed" || remark === "Unopened") {
-              status = "Close";
-              action = "Open";
-            } else if (remark === "All Clear") {
-              status = "Open";
-              action = "Close";
-            } else if (userAttendance.status === "Present") {
-              status = "Open";
-              action = "Close";
-            } else if (userAttendance.status === "Absent") {
-              status = "Close";
-              action = "Open";
+            canToggle = false;
+          } else if (isDisabled) {
+            // Disabled date - no action
+            status = "-";
+            action = "";
+            canToggle = false;
+          } else if (dayAttendance) {
+            // Use isOpen field (defaults to true if not set)
+            const isOpen = dayAttendance.isOpen ?? true;
+            status = isOpen ? "Open" : "Close";
+            remark = dayAttendance.remark || null;
+
+            // Determine if user can toggle
+            if (isPast) {
+              // Past days - cannot toggle
+              canToggle = false;
+              action = "";
+            } else if (isToday) {
+              // Today - can toggle only before close time
+              const now = new Date();
+              const [closeHour, closeMinute] = settings.closeTime.split(":").map(Number);
+              const closeTimeDate = new Date();
+              closeTimeDate.setHours(closeHour, closeMinute, 0, 0);
+              canToggle = now < closeTimeDate;
+              action = canToggle ? (isOpen ? "Close" : "Open") : "";
             } else {
-              // No status or remark set yet
-              status = "Open";
-              action = "Close";
+              // Future days - can toggle
+              canToggle = true;
+              action = isOpen ? "Close" : "Open";
             }
           } else {
             // No attendance record yet, default to Open
             status = "Open";
-            action = "Close";
+            if (isPast) {
+              canToggle = false;
+              action = "";
+            } else if (isToday) {
+              const now = new Date();
+              const [closeHour, closeMinute] = settings.closeTime.split(":").map(Number);
+              const closeTimeDate = new Date();
+              closeTimeDate.setHours(closeHour, closeMinute, 0, 0);
+              canToggle = now < closeTimeDate;
+              action = canToggle ? "Close" : "";
+            } else {
+              canToggle = true;
+              action = "Close";
+            }
           }
 
           return {
@@ -206,20 +261,361 @@ export default function UserDashboard() {
             menuImage,
             status,
             action,
+            remark,
+            attendanceId: dayAttendance?.id || null,
+            canToggle,
           };
         });
 
         setTimetableRows(rows);
+
+        // Calculate stats from filtered data
+        const calculatedStats = calculateStats(filterDates, userAttendance, settings);
+        setStats(calculatedStats);
       } catch (error) {
         console.error("Failed to load timetable:", error);
         setTimetableRows([]);
+        setStats({
+          totalDays: 0,
+          sundays: 0,
+          workDays: 0,
+          close: 0,
+          open: 0,
+          unclosed: 0,
+          unopened: 0,
+          totalFine: 0,
+        });
       } finally {
         setLoadingTimetable(false);
+        setLoadingStats(false);
       }
     };
 
     loadTimetable();
-  }, [user]);
+  }, [user, selectedFilter, settings]);
+
+  const handleToggleOpenClose = async (row: TimetableRow) => {
+    if (!user || !row.canToggle) return;
+
+    const dateString = row.dateString;
+    setTogglingDates((prev) => new Set(prev).add(dateString));
+
+    try {
+      const newIsOpen = row.status === "Open" ? false : true;
+
+      // Optimistically update the row immediately
+      setTimetableRows((prev) =>
+        prev.map((r) =>
+          r.dateString === dateString
+            ? {
+              ...r,
+              status: newIsOpen ? "Open" : "Close",
+              action: newIsOpen ? "Close" : "Open",
+            }
+            : r
+        )
+      );
+
+      if (row.attendanceId) {
+        // Update existing attendance (non-blocking)
+        // Don't generate remark if status is null - let API handle it
+        updateAttendance(row.attendanceId, { isOpen: newIsOpen }, user)
+          .then((response) => {
+            // Update with server response
+            // Remark will only be set if status is not null (handled by API)
+            setTimetableRows((prev) =>
+              prev.map((r) =>
+                r.dateString === dateString
+                  ? {
+                    ...r,
+                    status: newIsOpen ? "Open" : "Close",
+                    action: newIsOpen ? "Close" : "Open",
+                    remark: response.remark || null, // Only use remark from API if status exists
+                  }
+                  : r
+              )
+            );
+          })
+          .catch((error) => {
+            console.error("Failed to update attendance:", error);
+            // On error, reload timetable
+            loadTimetable();
+          });
+      } else {
+        // Create new attendance (non-blocking)
+        // Don't generate remark - status is null by default
+        createAttendance(
+          {
+            userId: user.id,
+            date: dateString,
+            mealType: "Lunch",
+            isOpen: newIsOpen,
+          },
+          user
+        )
+          .then((response) => {
+            // Update with real ID
+            // Remark will be null since status is null
+            setTimetableRows((prev) =>
+              prev.map((r) =>
+                r.dateString === dateString
+                  ? {
+                    ...r,
+                    attendanceId: response.id,
+                    remark: response.remark || null, // Should be null if status is null
+                  }
+                  : r
+              )
+            );
+          })
+          .catch((error) => {
+            console.error("Failed to create attendance:", error);
+            // On error, reload timetable
+            loadTimetable();
+          });
+      }
+    } catch (error) {
+      console.error("Failed to toggle open/close:", error);
+      // On error, reload timetable
+      loadTimetable();
+    } finally {
+      setTogglingDates((prev) => {
+        const next = new Set(prev);
+        next.delete(dateString);
+        return next;
+      });
+    }
+  };
+
+  const loadTimetable = async () => {
+    if (!user) {
+      setLoadingTimetable(false);
+      setLoadingStats(false);
+      return;
+    }
+
+    try {
+      setLoadingTimetable(true);
+      setLoadingStats(true);
+
+      const filterDates = getFilterDates(selectedFilter);
+
+      // Fetch all menus
+      const allMenus = await getAllMenus(user);
+
+      // Fetch attendance for all dates in parallel
+      const uniqueDates = Array.from(
+        new Set(
+          filterDates.map(
+            (d) =>
+              `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+          )
+        )
+      );
+
+      const attendancePromises = uniqueDates.map((dateString) =>
+        getAttendance(user, {
+          date: dateString,
+          mealType: "Lunch",
+        }).catch(() => [])
+      );
+      const attendanceResults = await Promise.all(attendancePromises);
+      const allAttendance = attendanceResults.flat();
+
+      // Filter to get only current user's attendance
+      const userAttendance = allAttendance.filter((a) => a.userId === user.id);
+
+      // Build timetable rows
+      const rows: TimetableRow[] = filterDates.map((date) => {
+        const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        const { day: dayLabel, sub: subLabel } = formatDateLabel(date);
+        const dayOfWeek = getDayOfWeek(date);
+        const weekType = getWeekType(date);
+
+        // Find menu for this day
+        let menuName = "-";
+        let menuImage = "/logo.png";
+
+        if (dayOfWeek) {
+          const menu = allMenus.find(
+            (m) => m.dayOfWeek === dayOfWeek && m.weekType === weekType
+          );
+          if (menu?.menuItems?.[0]) {
+            menuName = menu.menuItems[0].name;
+            menuImage = menu.menuItems[0].imageUrl;
+          }
+        }
+
+        // Find attendance for this user on this date
+        const dayAttendance = userAttendance.find(
+          (a) => a.date === dateString && a.mealType === "Lunch"
+        );
+
+        // Determine status and action
+        let status: "Open" | "Close" | "-" = "-";
+        let action = "";
+        let remark: string | null = null;
+        let canToggle = false;
+
+        // Get today's date (without time)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        const isToday = dateString === todayString;
+
+        // Compare dates without time
+        const dateOnly = new Date(date);
+        dateOnly.setHours(0, 0, 0, 0);
+        const isPast = dateOnly < today && !isToday;
+        const isFuture = dateOnly > today;
+
+        // Check if date is disabled
+        const isDisabled = settings.disabledDates.includes(dateString);
+
+        if (!dayOfWeek) {
+          status = "-";
+          action = "";
+          canToggle = false;
+        } else if (isDisabled) {
+          status = "-";
+          action = "";
+          canToggle = false;
+        } else if (dayAttendance) {
+          const isOpen = dayAttendance.isOpen ?? true;
+          status = isOpen ? "Open" : "Close";
+          remark = dayAttendance.remark || null;
+
+          if (isPast) {
+            canToggle = false;
+            action = "";
+          } else if (isToday) {
+            const now = new Date();
+            const [closeHour, closeMinute] = settings.closeTime.split(":").map(Number);
+            const closeTimeDate = new Date();
+            closeTimeDate.setHours(closeHour, closeMinute, 0, 0);
+            canToggle = now < closeTimeDate;
+            action = canToggle ? (isOpen ? "Close" : "Open") : "";
+          } else {
+            canToggle = true;
+            action = isOpen ? "Close" : "Open";
+          }
+        } else {
+          status = "Open";
+          if (isPast) {
+            canToggle = false;
+            action = "";
+          } else if (isToday) {
+            const now = new Date();
+            const [closeHour, closeMinute] = settings.closeTime.split(":").map(Number);
+            const closeTimeDate = new Date();
+            closeTimeDate.setHours(closeHour, closeMinute, 0, 0);
+            canToggle = now < closeTimeDate;
+            action = canToggle ? "Close" : "";
+          } else {
+            canToggle = true;
+            action = "Close";
+          }
+        }
+
+        return {
+          date,
+          dateString,
+          dayLabel,
+          subLabel,
+          menuName,
+          menuImage,
+          status,
+          action,
+          remark,
+          attendanceId: dayAttendance?.id || null,
+          canToggle,
+        };
+      });
+
+      setTimetableRows(rows);
+
+      // Calculate stats from filtered data
+      const calculatedStats = calculateStats(filterDates, userAttendance, settings);
+      setStats(calculatedStats);
+    } catch (error) {
+      console.error("Failed to load timetable:", error);
+      setTimetableRows([]);
+      setStats({
+        totalDays: 0,
+        sundays: 0,
+        workDays: 0,
+        close: 0,
+        open: 0,
+        unclosed: 0,
+        unopened: 0,
+        totalFine: 0,
+      });
+    } finally {
+      setLoadingTimetable(false);
+      setLoadingStats(false);
+    }
+  };
+
+  function calculateStats(
+    dates: Date[],
+    attendance: AttendanceWithUser[],
+    settings: { fineAmountUnclosed: number; fineAmountUnopened: number }
+  ): DashboardStatsData {
+    let totalDays = dates.length;
+    let sundays = 0;
+    let workDays = 0;
+    let close = 0;
+    let open = 0;
+    let unclosed = 0;
+    let unopened = 0;
+
+    dates.forEach((date) => {
+      const dayOfWeek = getDayOfWeek(date);
+      if (!dayOfWeek) {
+        sundays++;
+      } else {
+        workDays++;
+      }
+
+      const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      const dayAttendance = attendance.find(
+        (a) => a.date === dateString && a.mealType === "Lunch" && a.userId === user?.id
+      );
+
+      if (dayAttendance && dayOfWeek) {
+        const isOpen = dayAttendance.isOpen ?? true;
+        const remark = dayAttendance.remark;
+
+        if (isOpen) {
+          open++;
+        } else {
+          close++;
+        }
+
+        if (remark === "Unclosed") {
+          unclosed++;
+        } else if (remark === "Unopened") {
+          unopened++;
+        }
+      } else if (dayOfWeek) {
+        // No attendance record, default to open
+        open++;
+      }
+    });
+
+    const totalFine = unclosed * settings.fineAmountUnclosed + unopened * settings.fineAmountUnopened;
+
+    return {
+      totalDays,
+      sundays,
+      workDays,
+      close,
+      open,
+      unclosed,
+      unopened,
+      totalFine,
+    };
+  }
 
   return (
     <div className="min-h-screen bg-muted px-4 py-6 md:px-8">
@@ -285,7 +681,7 @@ export default function UserDashboard() {
           <div className="flex max-w-max items-center gap-2 rounded-md bg-yellow-500/10 px-3 py-1 text-sm">
             <span className="mt-0.5 text-lg">⚠️</span>
             <p>
-              Reminder: Open time is 10:00 AM. Please book or cancel your lunch
+              Reminder: Close time is {settings.closeTime}. Please open or close your lunch
               before the deadline!
             </p>
           </div>
@@ -308,11 +704,11 @@ export default function UserDashboard() {
               <p className="font-semibold text-foreground">Fine policy</p>
               <p>
                 For <span className="font-medium text-foreground">Unclosed</span> meals, a fine of{" "}
-                <span className="font-mono">Rs {fineAmount.unclosed}/-</span> will be applied.
+                <span className="font-mono">Rs {settings.fineAmountUnclosed}/-</span> will be applied.
               </p>
               <p>
                 For <span className="font-medium text-foreground">Unopened</span> meals, a fine of{" "}
-                <span className="font-mono">Rs {fineAmount.unopened}/-</span> will be applied.
+                <span className="font-mono">Rs {settings.fineAmountUnopened}/-</span> will be applied.
               </p>
             </div>
           </div>
@@ -320,56 +716,12 @@ export default function UserDashboard() {
 
         {/* Filters & stats */}
         <section className="space-y-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <p className="text-sm font-medium">Filters:</p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                className="rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground"
-              >
-                This Week
-              </Button>
-              {["10 Days", "15 Days", "20 Days", "30 Days", "This Month"].map(
-                (label) => (
-                  <Button
-                    key={label}
-                    variant="outline"
-                    size="sm"
-                    className="py-1 text-xs"
-                  >
-                    {label}
-                  </Button>
-                ),
-              )}
-            </div>
-          </div>
+          <DashboardFilters
+            selectedFilter={selectedFilter}
+            onFilterChange={setSelectedFilter}
+          />
 
-          <div className="grid gap-3 md:grid-cols-8">
-            {["7", "1", "6", "2", "4", "3", "3", "1700"].map((value, idx) => {
-              const labels = [
-                "Total Days",
-                "Sundays",
-                "Work Days",
-                "Close",
-                "Open",
-                "Unclosed",
-                "Unopened",
-                "Total fine",
-              ];
-              return (
-                <Card key={labels[idx]} className="rounded-md border border-border">
-                  <CardContent className="p-3 flex flex-col items-center gap-2">
-                    <div className="flex h-10 w-full items-center justify-center rounded-md bg-secondary text-lg font-semibold text-secondary-foreground">
-                      {value}
-                    </div>
-                    <p className="text-[11px] text-muted-foreground text-center">
-                      {labels[idx]}
-                    </p>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+          <DashboardStats stats={stats} loading={loadingStats} />
         </section>
 
         {/* Timetable */}
@@ -449,14 +801,40 @@ export default function UserDashboard() {
                           )}
                         </TableCell>
                         <TableCell className="px-4 py-3 align-top">
-                          {row.action && (
+                          {row.remark ? (
+                            <div className="flex flex-col gap-1">
+                              <span
+                                className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${row.remark === "All Clear"
+                                  ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300"
+                                  : row.remark === "Unclosed"
+                                    ? "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300"
+                                    : "bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300"
+                                  }`}
+                              >
+                                {row.remark}
+                              </span>
+                              {row.canToggle && row.action && (
+                                <Button
+                                  size="sm"
+                                  variant={row.action === "Open" ? "outline" : "default"}
+                                  onClick={() => handleToggleOpenClose(row)}
+                                  disabled={togglingDates.has(row.dateString)}
+                                  className="mt-1 w-fit"
+                                >
+                                  {togglingDates.has(row.dateString) ? "..." : row.action}
+                                </Button>
+                              )}
+                            </div>
+                          ) : row.canToggle && row.action ? (
                             <Button
                               size="sm"
                               variant={row.action === "Open" ? "outline" : "default"}
+                              onClick={() => handleToggleOpenClose(row)}
+                              disabled={togglingDates.has(row.dateString)}
                             >
-                              {row.action}
+                              {togglingDates.has(row.dateString) ? "..." : row.action}
                             </Button>
-                          )}
+                          ) : null}
                         </TableCell>
                       </TableRow>
                     ))

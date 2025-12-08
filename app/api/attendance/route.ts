@@ -1,23 +1,60 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, attendance, users, guests } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware/auth";
+import { db, attendance, users, guests, settings } from "@/lib/db";
+import { requireAdmin, requireAuth } from "@/lib/middleware/auth";
 import { CreateAttendanceDto } from "@/lib/types/attendance";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, lte } from "drizzle-orm";
+
+// Helper function to auto-generate remark based on status and isOpen
+function generateRemark(
+  status: "Present" | "Absent" | null,
+  isOpen: boolean
+): "All Clear" | "Unclosed" | "Unopened" | null {
+  if (status === null) return null;
+
+  if (status === "Present" && isOpen) {
+    return "All Clear";
+  }
+  if (status === "Absent" && !isOpen) {
+    return "All Clear";
+  }
+  if (status === "Absent" && isOpen) {
+    return "Unclosed";
+  }
+  if (status === "Present" && !isOpen) {
+    return "Unopened";
+  }
+
+  return null;
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const admin = requireAdmin(request);
+    const authUser = requireAuth(request);
     const { searchParams } = new URL(request.url);
 
     const date =
       searchParams.get("date") || new Date().toISOString().split("T")[0];
-    const mealType = searchParams.get("mealType") || "Lunch";
+    // Always use "Lunch" meal type for now
+    const mealType = "Lunch";
 
-    // Get all users
-    const allUsers = await db
-      .select()
-      .from(users)
-      .where(eq(users.role, "user"));
+    // Check if user is admin or regular user
+    const isAdmin =
+      authUser.role === "admin" || authUser.role === "super_admin";
+
+    // Get all users created on or before the selected date
+    // Convert date string to Date object for comparison
+    const selectedDateObj = new Date(date);
+    selectedDateObj.setHours(23, 59, 59, 999); // End of the selected day
+
+    // If admin, get all users. If regular user, only get their own data
+    const allUsers = isAdmin
+      ? await db
+          .select()
+          .from(users)
+          .where(
+            and(eq(users.role, "user"), lte(users.createdAt, selectedDateObj))
+          )
+      : await db.select().from(users).where(eq(users.id, authUser.id));
 
     // Get attendance for the date and meal type
     const attendanceRecords = await db
@@ -27,6 +64,7 @@ export async function GET(request: NextRequest) {
         date: attendance.date,
         mealType: attendance.mealType,
         status: attendance.status,
+        isOpen: attendance.isOpen,
         remark: attendance.remark,
         fineAmount: attendance.fineAmount,
         createdAt: attendance.createdAt,
@@ -59,7 +97,7 @@ export async function GET(request: NextRequest) {
           (a) => a.userId === user.id
         );
 
-        // If no attendance record exists, create one with null status
+        // If no attendance record exists, create one with null status and isOpen = true
         if (!attendanceRecord) {
           try {
             const [newRecord] = await db
@@ -69,6 +107,7 @@ export async function GET(request: NextRequest) {
                 date,
                 mealType: mealType as any,
                 status: undefined, // Use undefined for nullable enum in Drizzle
+                isOpen: true, // Default to open
               })
               .returning();
             attendanceRecord = newRecord;
@@ -113,6 +152,7 @@ export async function GET(request: NextRequest) {
             attendanceRecord.status === "Absent"
               ? attendanceRecord.status
               : null,
+          isOpen: attendanceRecord.isOpen ?? true, // Default to true if not set
           remark: attendanceRecord.remark || null,
           fineAmount: attendanceRecord.fineAmount || "0",
           guestCount: guestCountMap.get(user.id) || 0,
@@ -174,7 +214,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Auto-generate remark ONLY if status is provided (not null)
+    // Default isOpen to true if not provided
+    const isOpen = body.isOpen !== undefined ? body.isOpen : true;
+    let autoRemark = null;
+    // Only generate remark if status is set (not null)
+    if (body.status && body.status !== null) {
+      autoRemark = generateRemark(body.status, isOpen);
+    }
+
     // Create attendance
+    // Remark should be null if status is null
     const [newAttendance] = await db
       .insert(attendance)
       .values({
@@ -182,7 +232,8 @@ export async function POST(request: NextRequest) {
         date: body.date,
         mealType: body.mealType as any,
         status: body.status ? (body.status as any) : undefined,
-        remark: body.remark as any,
+        isOpen: isOpen,
+        remark: body.remark ? (body.remark as any) : (autoRemark as any), // Will be null if status is null
       })
       .returning();
 

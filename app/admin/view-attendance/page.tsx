@@ -1,6 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { DateFilter } from "@/components/admin/date-filter";
+import { getAttendance } from "@/lib/api/client";
+import { useAuth } from "@/lib/auth-context";
+import { AttendanceWithUser } from "@/lib/types/attendance";
 
 const allClear = [
   "ALI KHAN SWATI",
@@ -63,18 +68,86 @@ function StatusColumn({
 }
 
 export default function ViewAttendancePage() {
+  const { user } = useAuth();
+  // Get today's date in local timezone (YYYY-MM-DD format)
+  const getLocalDateString = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const [selectedDate, setSelectedDate] = useState<string>(
+    getLocalDateString(new Date())
+  );
+  const [loading, setLoading] = useState(true);
+  const [attendance, setAttendance] = useState<AttendanceWithUser[]>([]);
+
+  useEffect(() => {
+    const loadAttendance = async () => {
+      if (!user) return;
+
+      setLoading(true);
+      try {
+        const data = await getAttendance(user, {
+          date: selectedDate,
+          mealType: "Lunch",
+        });
+        setAttendance(data);
+      } catch (error) {
+        console.error("Failed to load attendance:", error);
+        setAttendance([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAttendance();
+  }, [user, selectedDate]);
+
+  // Filter attendance by remark
+  const allClearUsers = attendance
+    .filter((a) => a.remark === "All Clear")
+    .map((a) => a.user.name.toUpperCase());
+
+  const unclosedUsers = attendance
+    .filter((a) => a.remark === "Unclosed")
+    .map((a) => a.user.name.toUpperCase());
+
+  const unopenedUsers = attendance
+    .filter((a) => a.remark === "Unopened")
+    .map((a) => a.user.name.toUpperCase());
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <h1 className="text-xl font-semibold">View Attendance</h1>
-        <button className="self-start rounded-full border border-input bg-background px-4 py-1 text-xs font-medium text-muted-foreground">
-          Today
-        </button>
+        <DateFilter
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
+        />
       </header>
-      <section className="grid gap-4 md:grid-cols-3">
-        <StatusColumn title="All Clear" color="green" items={allClear} />
-        <StatusColumn title="Unclosed" color="red" items={unclosed} />
-        <StatusColumn title="Unopened" color="orange" items={unopened} />
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatusColumn
+          title="All Clear (Present)"
+          color="green"
+          items={loading ? [] : allClearUsers}
+        />
+        <StatusColumn
+          title="All Clear (Absent)"
+          color="green"
+          items={loading ? [] : allClearUsers}
+        />
+        <StatusColumn
+          title="Unclosed"
+          color="red"
+          items={loading ? [] : unclosedUsers}
+        />
+        <StatusColumn
+          title="Unopened"
+          color="orange"
+          items={loading ? [] : unopenedUsers}
+        />
       </section>
     </div>
   );

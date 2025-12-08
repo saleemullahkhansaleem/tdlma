@@ -47,7 +47,10 @@ export function UserFormModal({
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
+    currentPassword: "",
     role: "user" as "user" | "admin" | "super_admin",
+    status: "Active" as "Active" | "Inactive",
   });
 
   const isEdit = !!user;
@@ -58,14 +61,20 @@ export function UserFormModal({
         name: user.name,
         email: user.email,
         password: "",
+        confirmPassword: "",
+        currentPassword: "",
         role: user.role,
+        status: user.status,
       });
     } else {
       setFormData({
         name: "",
         email: "",
         password: "",
+        confirmPassword: "",
+        currentPassword: "",
         role: "user",
+        status: "Active",
       });
     }
     setError(null);
@@ -92,6 +101,21 @@ export function UserFormModal({
       return;
     }
 
+    // Check if passwords match
+    if (formData.password && formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    // If editing own account and changing password, require current password
+    const isUpdatingSelf = isEdit && user.id === currentUser.id;
+    if (isUpdatingSelf && formData.password) {
+      if (!formData.currentPassword) {
+        setError("Current password is required to change your password");
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -100,9 +124,13 @@ export function UserFormModal({
           name: formData.name,
           email: formData.email,
           role: formData.role,
+          status: formData.status,
         };
         if (formData.password) {
           updateData.password = formData.password;
+          if (isUpdatingSelf) {
+            updateData.currentPassword = formData.currentPassword;
+          }
         }
         await updateUser(user.id, updateData, currentUser);
       } else {
@@ -111,6 +139,7 @@ export function UserFormModal({
           email: formData.email,
           password: formData.password,
           role: formData.role,
+          status: formData.status,
         };
         await createUser(createData, currentUser);
       }
@@ -161,9 +190,26 @@ export function UserFormModal({
             />
           </div>
 
+          {isEdit && user.id === currentUser?.id && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Current Password</label>
+              <Input
+                type="password"
+                placeholder="Enter current password (required if changing password)"
+                value={formData.currentPassword}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    currentPassword: e.target.value,
+                  })
+                }
+              />
+            </div>
+          )}
+
           <div className="space-y-2">
             <label className="text-sm font-medium">
-              Password {isEdit && "(leave empty to keep current)"}
+              {isEdit ? "New Password (leave empty to keep current)" : "Password"}
             </label>
             <Input
               type="password"
@@ -175,6 +221,21 @@ export function UserFormModal({
               required={!isEdit}
             />
           </div>
+
+          {formData.password && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Confirm Password</label>
+              <Input
+                type="password"
+                placeholder="Confirm password"
+                value={formData.confirmPassword}
+                onChange={(e) =>
+                  setFormData({ ...formData, confirmPassword: e.target.value })
+                }
+                required={!!formData.password}
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Role</label>
@@ -196,6 +257,27 @@ export function UserFormModal({
                     {role === "super_admin" ? "Super Admin" : role.charAt(0).toUpperCase() + role.slice(1)}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Status</label>
+            <Select
+              value={formData.status}
+              onValueChange={(value) =>
+                setFormData({
+                  ...formData,
+                  status: value as "Active" | "Inactive",
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
           </div>

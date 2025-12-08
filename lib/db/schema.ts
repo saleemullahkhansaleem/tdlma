@@ -18,6 +18,7 @@ export const userRoleEnum = pgEnum("user_role", [
   "admin",
   "super_admin",
 ]);
+export const userStatusEnum = pgEnum("user_status", ["Active", "Inactive"]);
 export const dayOfWeekEnum = pgEnum("day_of_week", [
   "Monday",
   "Tuesday",
@@ -71,6 +72,7 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 255 }).notNull().unique(),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   role: userRoleEnum("role").notNull(),
+  status: userStatusEnum("status").default("Active").notNull(),
   avatarUrl: varchar("avatar_url", { length: 512 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -95,6 +97,7 @@ export const attendance = pgTable("attendance", {
   date: date("date").notNull(),
   mealType: mealTypeEnum("meal_type").notNull(),
   status: attendanceStatusEnum("status"),
+  isOpen: boolean("is_open").default(true).notNull(), // Default to open, user can close it
   remark: remarkEnum("remark"),
   fineAmount: decimal("fine_amount", { precision: 10, scale: 2 }).default("0"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -130,16 +133,23 @@ export const guests = pgTable("guests", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Settings Table
+// Settings Table (Global settings, single row)
 export const settings = pgTable("settings", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id")
-    .references(() => users.id)
-    .notNull()
-    .unique(),
-  theme: themeEnum("theme").default("light"),
-  notifications: boolean("notifications").default(true),
-  language: varchar("language", { length: 10 }).default("en"),
+  closeTime: varchar("close_time", { length: 5 }).default("18:00").notNull(), // Format: HH:mm
+  fineAmountUnclosed: decimal("fine_amount_unclosed", {
+    precision: 10,
+    scale: 2,
+  })
+    .default("0")
+    .notNull(),
+  fineAmountUnopened: decimal("fine_amount_unopened", {
+    precision: 10,
+    scale: 2,
+  })
+    .default("0")
+    .notNull(),
+  disabledDates: json("disabled_dates").$type<string[]>().default([]).notNull(), // Array of date strings in YYYY-MM-DD format
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

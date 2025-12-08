@@ -91,6 +91,10 @@ export function TodayMenu({
     loadTodayMenu();
   }, [user]);
 
+  const today = new Date();
+  const dayOfWeek = getDayOfWeek(today);
+  const isSunday = !dayOfWeek;
+
   const menuItem = todayMenu?.menuItems?.[0];
   const menuName = menuItem?.name || "Not set";
   const menuImage = menuItem?.imageUrl || "/logo.png";
@@ -118,6 +122,18 @@ export function TodayMenu({
             className="rounded-full"
             style={{ width: imageSize, height: imageSize }}
           />
+        </div>
+      ) : isSunday ? (
+        <div className="flex items-center gap-2">
+          <span className={`font-semibold ${textSizeClasses[textSize]} text-muted-foreground italic`}>
+            No meal today
+          </span>
+          <div
+            className="rounded-full border border-border bg-muted flex items-center justify-center"
+            style={{ width: imageSize, height: imageSize }}
+          >
+            <span className="text-xs text-muted-foreground">☀️</span>
+          </div>
         </div>
       ) : (
         <div className="flex items-center gap-2">

@@ -20,6 +20,7 @@ import {
   MealType,
 } from "@/lib/types/attendance";
 import { CreateGuestDto, Guest } from "@/lib/types/guest";
+import { Settings, UpdateSettingsDto } from "@/lib/types/settings";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -469,6 +470,45 @@ export async function getGuests(
       .json()
       .catch(() => ({ message: "Failed to fetch guests" }));
     throw new Error(error.error || error.message || "Failed to fetch guests");
+  }
+
+  return response.json();
+}
+
+// Settings Management Functions (Admin Only)
+
+export async function getSettings(user: AppUser): Promise<Settings> {
+  const response = await fetch(`${API_BASE}/api/settings`, {
+    headers: getAuthHeaders(user),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to fetch settings" }));
+    throw new Error(error.error || error.message || "Failed to fetch settings");
+  }
+
+  return response.json();
+}
+
+export async function updateSettings(
+  data: UpdateSettingsDto,
+  user: AppUser
+): Promise<Settings> {
+  const response = await fetch(`${API_BASE}/api/settings`, {
+    method: "PATCH",
+    headers: getAuthHeaders(user),
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to update settings" }));
+    throw new Error(
+      error.error || error.message || "Failed to update settings"
+    );
   }
 
   return response.json();

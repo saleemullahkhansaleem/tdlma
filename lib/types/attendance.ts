@@ -8,6 +8,7 @@ export interface Attendance {
   date: string;
   mealType: MealType;
   status: AttendanceStatus;
+  isOpen: boolean; // Whether the meal is open (default: true)
   remark: Remark | null;
   fineAmount: string;
   createdAt: Date;
@@ -29,10 +30,12 @@ export interface CreateAttendanceDto {
   date: string;
   mealType: MealType;
   status?: AttendanceStatus;
+  isOpen?: boolean;
   remark?: Remark;
 }
 
 export interface UpdateAttendanceDto {
   status?: AttendanceStatus | null;
+  isOpen?: boolean;
   remark?: Remark | null;
 }

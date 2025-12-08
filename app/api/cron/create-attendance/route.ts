@@ -24,11 +24,8 @@ export async function GET(request: NextRequest) {
       .where(eq(users.role, "user"));
 
     // Meal types to create attendance for
-    const mealTypes: ("Breakfast" | "Lunch" | "Dinner")[] = [
-      "Breakfast",
-      "Lunch",
-      "Dinner",
-    ];
+    // For now, only create Lunch records
+    const mealTypes: ("Breakfast" | "Lunch" | "Dinner")[] = ["Lunch"];
 
     let createdCount = 0;
     let skippedCount = 0;
@@ -54,12 +51,13 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        // Create attendance record with null status
+        // Create attendance record with null status and isOpen = true (default)
         await db.insert(attendance).values({
           userId: user.id,
           date: today,
           mealType: mealType as any,
           status: undefined, // Use undefined for nullable enum in Drizzle
+          isOpen: true, // Default to open
         });
 
         createdCount++;

@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { UserFormModal } from "./user-form-modal";
 import { format } from "date-fns";
 import { Plus, Edit, Trash2, Search } from "lucide-react";
+import { updateUser } from "@/lib/api/client";
 import {
   Dialog,
   DialogContent,
@@ -150,6 +151,17 @@ export function UserManagement() {
     }
   };
 
+  const handleStatusChange = async (user: User, newStatus: "Active" | "Inactive") => {
+    if (!currentUser) return;
+
+    try {
+      await updateUser(user.id, { status: newStatus }, currentUser);
+      await loadUsers();
+    } catch (err: any) {
+      setError(err.message || "Failed to update user status");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -241,49 +253,79 @@ export function UserManagement() {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <Badge variant={getRoleVariant(user.role)}>
-                        {getRoleLabel(user.role)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {format(new Date(user.createdAt), "MMM dd, yyyy")}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(user)}
-                          className="rounded-full"
+                {paginatedUsers.map((user) => {
+                  const isOwnRecord = user.id === currentUser?.id;
+                  return (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">
+                        {user.name}
+                        {isOwnRecord && (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            (You)
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <Badge variant={getRoleVariant(user.role)}>
+                          {getRoleLabel(user.role)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={user.status}
+                          onValueChange={(value) =>
+                            handleStatusChange(
+                              user,
+                              value as "Active" | "Inactive"
+                            )
+                          }
                         >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setUserToDelete(user);
-                            setDeleteModalOpen(true);
-                          }}
-                          disabled={user.id === currentUser?.id}
-                          className="rounded-full text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          <SelectTrigger className="w-32 h-7">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Active">Active</SelectItem>
+                            <SelectItem value="Inactive">Inactive</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {format(new Date(user.createdAt), "MMM dd, yyyy")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(user)}
+                            className="rounded-full"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setUserToDelete(user);
+                              setDeleteModalOpen(true);
+                            }}
+                            disabled={isOwnRecord}
+                            className="rounded-full text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

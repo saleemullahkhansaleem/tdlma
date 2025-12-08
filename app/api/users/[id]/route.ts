@@ -70,14 +70,6 @@ export async function PATCH(
       );
     }
 
-    // Prevent super admin from changing their own role
-    if (userId === superAdmin.id) {
-      return NextResponse.json(
-        { error: "Cannot modify your own account" },
-        { status: 403 }
-      );
-    }
-
     let body: UpdateUserDto;
     try {
       body = await request.json();
@@ -97,6 +89,39 @@ export async function PATCH(
 
     if (!existingUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const isUpdatingSelf = userId === superAdmin.id;
+
+    // Prevent super admin from changing their own role
+    if (isUpdatingSelf && body.role && body.role !== superAdmin.role) {
+      return NextResponse.json(
+        { error: "Cannot change your own role" },
+        { status: 403 }
+      );
+    }
+
+    // If updating own password, require current password
+    if (isUpdatingSelf && body.password) {
+      if (!body.currentPassword) {
+        return NextResponse.json(
+          { error: "Current password is required to change your own password" },
+          { status: 400 }
+        );
+      }
+
+      // Verify current password
+      const passwordMatch = await bcrypt.compare(
+        body.currentPassword,
+        existingUser.passwordHash
+      );
+
+      if (!passwordMatch) {
+        return NextResponse.json(
+          { error: "Current password is incorrect" },
+          { status: 401 }
+        );
+      }
     }
 
     // Validate role if provided
@@ -141,6 +166,9 @@ export async function PATCH(
     }
     if (body.role !== undefined) {
       updateData.role = body.role;
+    }
+    if (body.status !== undefined) {
+      updateData.status = body.status;
     }
     if (body.avatarUrl !== undefined) {
       updateData.avatarUrl = body.avatarUrl || null;

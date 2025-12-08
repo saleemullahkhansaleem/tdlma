@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { AddGuestModal } from "@/components/admin/add-guest-modal";
 import { AttendanceList } from "@/components/admin/attendance-list";
+import { DateFilter } from "@/components/admin/date-filter";
 import { AttendanceWithUser } from "@/lib/types/attendance";
 import { getAttendance } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
@@ -16,8 +16,16 @@ export default function MarkAttendancePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [attendance, setAttendance] = useState<AttendanceWithUser[]>([]);
+  // Get today's date in local timezone (YYYY-MM-DD format)
+  const getLocalDateString = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split("T")[0]
+    getLocalDateString(new Date())
   );
   const [mealType, setMealType] = useState<"Breakfast" | "Lunch" | "Dinner">("Lunch");
 
@@ -40,36 +48,34 @@ export default function MarkAttendancePage() {
     }
   };
 
+  const handleItemUpdate = (updatedItem: AttendanceWithUser) => {
+    // Optimistically update only the changed item in the state
+    setAttendance((prev) => {
+      // Check if item exists
+      const existingIndex = prev.findIndex(
+        (item) =>
+          item.id === updatedItem.id ||
+          (item.userId === updatedItem.userId &&
+            item.date === updatedItem.date &&
+            item.mealType === updatedItem.mealType)
+      );
+
+      if (existingIndex >= 0) {
+        // Update existing item
+        return prev.map((item, index) =>
+          index === existingIndex ? updatedItem : item
+        );
+      } else {
+        // Add new item (for newly created attendance)
+        return [...prev, updatedItem];
+      }
+    });
+  };
+
   useEffect(() => {
     loadAttendance();
   }, [user, selectedDate, mealType]);
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedDate(e.target.value);
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    if (dateString === today.toISOString().split("T")[0]) {
-      return "Today";
-    } else if (dateString === yesterday.toISOString().split("T")[0]) {
-      return "Yesterday";
-    } else if (dateString === tomorrow.toISOString().split("T")[0]) {
-      return "Tomorrow";
-    } else {
-      return date.toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      });
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -81,19 +87,12 @@ export default function MarkAttendancePage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={handleDateChange}
-              className="absolute inset-0 opacity-0 cursor-pointer"
-            />
-            <Badge variant="soft" className="rounded-full px-4 py-1 cursor-pointer">
-              {formatDate(selectedDate)}
-            </Badge>
-          </div>
+          <DateFilter
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
+          />
           <Button
-            className="rounded-full px-5"
+            className="px-5"
             onClick={() => setOpenGuest(true)}
           >
             Add Guest
@@ -108,15 +107,40 @@ export default function MarkAttendancePage() {
       )}
 
       {loading ? (
-        <div className="space-y-3">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
+        <div className="rounded-md border">
+          <div className="space-y-0">
+            <div className="border-b p-4">
+              <div className="grid grid-cols-4 gap-4">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            </div>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="border-b p-4 last:border-b-0">
+                <div className="grid grid-cols-4 gap-4 items-center">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-7 w-32" />
+                  <Skeleton className="h-6 w-20" />
+                  <Skeleton className="h-6 w-24" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : attendance.length === 0 ? (
+        <div className="rounded-md border bg-card p-12 text-center">
+          <p className="text-muted-foreground">No users found for this date</p>
         </div>
       ) : (
         <section>
-          <AttendanceList attendance={attendance} onUpdate={loadAttendance} />
+          <AttendanceList
+            attendance={attendance}
+            onUpdate={loadAttendance}
+            onItemUpdate={handleItemUpdate}
+            selectedDate={selectedDate}
+          />
         </section>
       )}
 
