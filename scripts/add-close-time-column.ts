@@ -10,8 +10,11 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
+// TypeScript type narrowing: after the check, we know DATABASE_URL is a string
+const dbUrl: string = DATABASE_URL;
+
 async function addCloseTimeColumn() {
-  const sql = postgres(DATABASE_URL);
+  const sql = postgres(dbUrl);
 
   try {
     console.log("Adding close_time column to settings table...");

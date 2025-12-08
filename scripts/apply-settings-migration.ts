@@ -12,8 +12,11 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
+// TypeScript type narrowing: after the check, we know DATABASE_URL is a string
+const dbUrl: string = DATABASE_URL;
+
 async function applyMigration() {
-  const sql = postgres(DATABASE_URL);
+  const sql = postgres(dbUrl);
 
   const migrationSQL = readFileSync(
     join(process.cwd(), "drizzle/0003_update_settings.sql"),

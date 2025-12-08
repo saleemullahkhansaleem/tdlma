@@ -10,8 +10,11 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
+// TypeScript type narrowing: after the check, we know DATABASE_URL is a string
+const dbUrl: string = DATABASE_URL;
+
 async function addIsOpenColumn() {
-  const sql = postgres(DATABASE_URL);
+  const sql = postgres(dbUrl);
 
   try {
     console.log("Adding is_open column to attendance table...");

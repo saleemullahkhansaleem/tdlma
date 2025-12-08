@@ -89,7 +89,7 @@ export function DisabledDatesManager({
           {disabledDates.map((date) => (
             <Badge
               key={date}
-              variant="secondary"
+              variant="soft"
               className="flex items-center gap-1 px-2 py-1"
             >
               <span>{formatDate(date)}</span>
