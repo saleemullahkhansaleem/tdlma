@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { AddGuestModal } from "@/components/admin/add-guest-modal";
 import { AttendanceList } from "@/components/admin/attendance-list";
 import { DateFilter } from "@/components/admin/date-filter";
@@ -9,6 +10,7 @@ import { AttendanceWithUser } from "@/lib/types/attendance";
 import { getAttendance } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Search } from "lucide-react";
 
 export default function MarkAttendancePage() {
   const { user } = useAuth();
@@ -16,6 +18,7 @@ export default function MarkAttendancePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [attendance, setAttendance] = useState<AttendanceWithUser[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   // Get today's date in local timezone (YYYY-MM-DD format)
   const getLocalDateString = (date: Date): string => {
     const year = date.getFullYear();
@@ -77,28 +80,56 @@ export default function MarkAttendancePage() {
   }, [user, selectedDate, mealType]);
 
 
+  // Filter attendance based on search query
+  const filteredAttendance = attendance.filter((item) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      item.user.name.toLowerCase().includes(query) ||
+      item.user.email.toLowerCase().includes(query)
+    );
+  });
+
   return (
-    <div className="space-y-6">
-      <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-xl font-semibold">Mark Attendance</h1>
+    <div className="space-y-4">
+      {/* Header and Actions */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold">Mark Attendance</h2>
           <p className="text-sm text-muted-foreground">
-            Update attendance and add guests.
+            Update attendance and add guests
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <DateFilter
-            selectedDate={selectedDate}
-            onDateChange={setSelectedDate}
-          />
+        <div>
           <Button
-            className="px-5"
+            className="rounded-full"
             onClick={() => setOpenGuest(true)}
           >
             Add Guest
           </Button>
         </div>
-      </header>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 rounded-md border bg-card p-4">
+        <div className="flex-1 min-w-[200px]">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by name or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </div>
+        <div className="">
+          <DateFilter
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
+          />
+        </div>
+      </div>
 
       {error && (
         <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
@@ -129,14 +160,18 @@ export default function MarkAttendancePage() {
             ))}
           </div>
         </div>
-      ) : attendance.length === 0 ? (
+      ) : filteredAttendance.length === 0 ? (
         <div className="rounded-md border bg-card p-12 text-center">
-          <p className="text-muted-foreground">No users found for this date</p>
+          <p className="text-muted-foreground">
+            {searchQuery
+              ? "No users match your search"
+              : "No users found for this date"}
+          </p>
         </div>
       ) : (
         <section>
           <AttendanceList
-            attendance={attendance}
+            attendance={filteredAttendance}
             onUpdate={loadAttendance}
             onItemUpdate={handleItemUpdate}
             selectedDate={selectedDate}

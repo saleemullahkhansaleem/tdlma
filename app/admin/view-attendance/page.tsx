@@ -119,14 +119,20 @@ export default function ViewAttendancePage() {
     .map((a) => a.user.name.toUpperCase());
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <h1 className="text-xl font-semibold">View Attendance</h1>
+    <div className="space-y-4">
+      {/* Header and Actions */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold">View Attendance</h2>
+          <p className="text-sm text-muted-foreground">
+            View attendance status by category for the selected date
+          </p>
+        </div>
         <DateFilter
           selectedDate={selectedDate}
           onDateChange={setSelectedDate}
         />
-      </header>
+      </div>
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatusColumn
           title="All Clear (Present)"

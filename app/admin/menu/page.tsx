@@ -92,8 +92,16 @@ export default function AdminMenuPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Menu</h1>
+    <div className="space-y-4">
+      {/* Header and Actions */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold">Menu</h2>
+          <p className="text-sm text-muted-foreground">
+            Manage menu items for Even and Odd weeks
+          </p>
+        </div>
+      </div>
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-muted-foreground">Week Even:</h2>

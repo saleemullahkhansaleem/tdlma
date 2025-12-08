@@ -32,14 +32,6 @@ export default function AdminFeedbackPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Feedback Management</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          View, filter, and respond to user feedback, suggestions, and complaints
-        </p>
-      </div>
-      <FeedbackManagement />
-    </div>
+    <FeedbackManagement />
   );
 }

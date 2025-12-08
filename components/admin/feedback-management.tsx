@@ -143,6 +143,13 @@ export function FeedbackManagement() {
 
   return (
     <div className="space-y-4">
+      {/* Header */}
+      <div>
+        <h2 className="text-xl font-semibold">Feedback Management</h2>
+        <p className="text-sm text-muted-foreground">
+          View, filter, and respond to user feedback, suggestions, and complaints
+        </p>
+      </div>
       {/* Filters and Search */}
       <div className="space-y-4 rounded-md border bg-card p-4">
         <div className="flex flex-wrap gap-3">
