@@ -10,7 +10,7 @@ import { AttendanceWithUser } from "@/lib/types/attendance";
 import { getAttendance } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search } from "lucide-react";
+import { CheckSquare, Search } from "lucide-react";
 
 export default function MarkAttendancePage() {
   const { user } = useAuth();
@@ -91,18 +91,21 @@ export default function MarkAttendancePage() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Header and Actions */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Mark Attendance</h2>
+        <div className="space-y-1">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <CheckSquare className="h-6 w-6 text-primary" />
+            Mark Attendance
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Update attendance and add guests
+            Update attendance and add guests for the selected date
           </p>
         </div>
         <div>
           <Button
-            className="rounded-full"
+            className="rounded-full w-full sm:w-auto"
             onClick={() => setOpenGuest(true)}
           >
             Add Guest
@@ -111,19 +114,19 @@ export default function MarkAttendancePage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 rounded-md border bg-card p-4">
-        <div className="flex-1 min-w-[200px]">
+      <div className="flex flex-col sm:flex-row gap-3 rounded-md border bg-card p-4">
+        <div className="flex-1 min-w-0">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by name or email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="pl-9 w-full"
             />
           </div>
         </div>
-        <div className="">
+        <div className="w-full sm:w-auto">
           <DateFilter
             selectedDate={selectedDate}
             onDateChange={setSelectedDate}
@@ -138,26 +141,30 @@ export default function MarkAttendancePage() {
       )}
 
       {loading ? (
-        <div className="rounded-md border">
-          <div className="space-y-0">
-            <div className="border-b p-4">
-              <div className="grid grid-cols-4 gap-4">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-4 w-20" />
-              </div>
-            </div>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="border-b p-4 last:border-b-0">
-                <div className="grid grid-cols-4 gap-4 items-center">
-                  <Skeleton className="h-5 w-32" />
-                  <Skeleton className="h-7 w-32" />
-                  <Skeleton className="h-6 w-20" />
-                  <Skeleton className="h-6 w-24" />
+        <div className="rounded-md border overflow-hidden">
+          <div className="overflow-x-auto">
+            <div className="space-y-0 min-w-full">
+              {/* Header Skeleton */}
+              <div className="border-b p-4">
+                <div className="grid grid-cols-4 gap-2 sm:gap-4 min-w-[600px]">
+                  <Skeleton className="h-4 w-20 min-w-[150px] sm:min-w-[200px]" />
+                  <Skeleton className="h-4 w-24 min-w-[180px] sm:min-w-[220px]" />
+                  <Skeleton className="h-4 w-16 min-w-[100px] sm:min-w-[120px]" />
+                  <Skeleton className="h-4 w-20 min-w-[100px] sm:min-w-[120px]" />
                 </div>
               </div>
-            ))}
+              {/* Row Skeletons */}
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="border-b p-4 last:border-b-0">
+                  <div className="grid grid-cols-4 gap-2 sm:gap-4 items-center min-w-[600px]">
+                    <Skeleton className="h-5 w-32 min-w-[150px] sm:min-w-[200px]" />
+                    <Skeleton className="h-7 w-32 min-w-[180px] sm:min-w-[220px]" />
+                    <Skeleton className="h-6 w-20 min-w-[100px] sm:min-w-[120px]" />
+                    <Skeleton className="h-6 w-24 min-w-[100px] sm:min-w-[120px]" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       ) : filteredAttendance.length === 0 ? (

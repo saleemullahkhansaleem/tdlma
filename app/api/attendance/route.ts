@@ -1,31 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, attendance, users, guests, settings } from "@/lib/db";
+import {
+  db,
+  attendance,
+  users,
+  guests,
+  settings as settingsTable,
+} from "@/lib/db";
 import { requireAdmin, requireAuth } from "@/lib/middleware/auth";
 import { CreateAttendanceDto } from "@/lib/types/attendance";
 import { eq, and, sql, lte } from "drizzle-orm";
-
-// Helper function to auto-generate remark based on status and isOpen
-function generateRemark(
-  status: "Present" | "Absent" | null,
-  isOpen: boolean
-): "All Clear" | "Unclosed" | "Unopened" | null {
-  if (status === null) return null;
-
-  if (status === "Present" && isOpen) {
-    return "All Clear";
-  }
-  if (status === "Absent" && !isOpen) {
-    return "All Clear";
-  }
-  if (status === "Absent" && isOpen) {
-    return "Unclosed";
-  }
-  if (status === "Present" && !isOpen) {
-    return "Unopened";
-  }
-
-  return null;
-}
+import { calculateRemark } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   try {
@@ -65,7 +49,6 @@ export async function GET(request: NextRequest) {
         mealType: attendance.mealType,
         status: attendance.status,
         isOpen: attendance.isOpen,
-        remark: attendance.remark,
         fineAmount: attendance.fineAmount,
         createdAt: attendance.createdAt,
         updatedAt: attendance.updatedAt,
@@ -136,6 +119,14 @@ export async function GET(request: NextRequest) {
           }
         }
 
+        const status =
+          attendanceRecord.status === "Present" ||
+          attendanceRecord.status === "Absent"
+            ? attendanceRecord.status
+            : null;
+        const isOpen = attendanceRecord.isOpen ?? true; // Default to true if not set
+        const remark = calculateRemark(status, isOpen);
+
         return {
           id: attendanceRecord.id,
           userId: user.id,
@@ -147,13 +138,9 @@ export async function GET(request: NextRequest) {
           },
           date,
           mealType,
-          status:
-            attendanceRecord.status === "Present" ||
-            attendanceRecord.status === "Absent"
-              ? attendanceRecord.status
-              : null,
-          isOpen: attendanceRecord.isOpen ?? true, // Default to true if not set
-          remark: attendanceRecord.remark || null,
+          status,
+          isOpen,
+          remark,
           fineAmount: attendanceRecord.fineAmount || "0",
           guestCount: guestCountMap.get(user.id) || 0,
           createdAt: attendanceRecord.createdAt,
@@ -214,17 +201,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Auto-generate remark ONLY if status is provided (not null)
     // Default isOpen to true if not provided
     const isOpen = body.isOpen !== undefined ? body.isOpen : true;
-    let autoRemark = null;
-    // Only generate remark if status is set (not null)
-    if (body.status && body.status !== null) {
-      autoRemark = generateRemark(body.status, isOpen);
+
+    // Get settings to calculate fine
+    const [settingsData] = await db.select().from(settingsTable).limit(1);
+
+    // Calculate remark and fine amount
+    const statusForRemark =
+      body.status === "Present" || body.status === "Absent"
+        ? body.status
+        : null;
+    const remark = calculateRemark(statusForRemark, isOpen);
+
+    // Calculate fine based on remark
+    let calculatedFine = "0";
+    if (settingsData) {
+      if (remark === "Unclosed") {
+        calculatedFine = settingsData.fineAmountUnclosed || "0";
+      } else if (remark === "Unopened") {
+        calculatedFine = settingsData.fineAmountUnopened || "0";
+      }
+      // "All Clear" or null means no fine
     }
 
-    // Create attendance
-    // Remark should be null if status is null
+    // Create attendance (remark is computed, not stored, but fine is stored)
     const [newAttendance] = await db
       .insert(attendance)
       .values({
@@ -233,11 +234,27 @@ export async function POST(request: NextRequest) {
         mealType: body.mealType as any,
         status: body.status ? (body.status as any) : undefined,
         isOpen: isOpen,
-        remark: body.remark ? (body.remark as any) : (autoRemark as any), // Will be null if status is null
+        fineAmount: calculatedFine,
       })
       .returning();
 
-    return NextResponse.json(newAttendance, { status: 201 });
+    // Calculate remark for response (computed from status and isOpen)
+    const status =
+      newAttendance.status === "Present" || newAttendance.status === "Absent"
+        ? newAttendance.status
+        : null;
+    const computedRemark = calculateRemark(
+      status,
+      newAttendance.isOpen ?? true
+    );
+
+    // Add computed remark to response
+    const response = {
+      ...newAttendance,
+      remark: computedRemark,
+    };
+
+    return NextResponse.json(response, { status: 201 });
   } catch (error: any) {
     if (error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -11,9 +11,18 @@ export async function POST(request: NextRequest) {
     const body: CreateUserDto = await request.json();
 
     // Validate required fields
-    if (!body.name || !body.email || !body.password || !body.role) {
+    if (
+      !body.name ||
+      !body.email ||
+      !body.password ||
+      !body.role ||
+      !body.userType
+    ) {
       return NextResponse.json(
-        { error: "Missing required fields: name, email, password, role" },
+        {
+          error:
+            "Missing required fields: name, email, password, role, userType",
+        },
         { status: 400 }
       );
     }
@@ -26,6 +35,14 @@ export async function POST(request: NextRequest) {
     ) {
       return NextResponse.json(
         { error: "Role must be 'user', 'admin', or 'super_admin'" },
+        { status: 400 }
+      );
+    }
+
+    // Validate userType
+    if (body.userType !== "employee" && body.userType !== "student") {
+      return NextResponse.json(
+        { error: "User type must be 'employee' or 'student'" },
         { status: 400 }
       );
     }
@@ -56,6 +73,8 @@ export async function POST(request: NextRequest) {
         passwordHash: passwordHash,
         role: body.role,
         status: body.status || "Active",
+        designation: body.designation || null,
+        userType: body.userType || null,
         avatarUrl: body.avatarUrl || null,
       })
       .returning();

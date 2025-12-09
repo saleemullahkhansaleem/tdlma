@@ -37,7 +37,7 @@ interface TodayMenuProps {
 
 export function TodayMenu({
   showDate = true,
-  imageSize = 32,
+  imageSize = 36,
   textSize = "lg",
   dateFormat = {
     weekday: "short",
@@ -46,16 +46,25 @@ export function TodayMenu({
     year: "numeric",
   },
 }: TodayMenuProps) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [todayMenu, setTodayMenu] = useState<Menu | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadTodayMenu = async () => {
-      if (!user) {
-        setLoading(false);
+      // Wait for auth to finish loading
+      if (authLoading) {
+        setLoading(true);
         return;
       }
+
+      if (!user) {
+        setLoading(false);
+        setTodayMenu(null);
+        return;
+      }
+
+      setLoading(true);
 
       try {
         const today = new Date();
@@ -89,16 +98,26 @@ export function TodayMenu({
     };
 
     loadTodayMenu();
-  }, [user]);
+  }, [user, authLoading]);
+
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const today = new Date();
   const dayOfWeek = getDayOfWeek(today);
   const isSunday = !dayOfWeek;
 
   const menuItem = todayMenu?.menuItems?.[0];
-  const menuName = menuItem?.name || "Not set";
+  const menuName = menuItem?.name;
   const menuImage = menuItem?.imageUrl || "/logo.png";
-  const todayDate = new Date().toLocaleDateString("en-GB", dateFormat);
+
+  // Format date only on client to avoid hydration mismatch
+  const todayDate = mounted
+    ? new Date().toLocaleDateString("en-GB", dateFormat)
+    : "";
 
   const textSizeClasses = {
     sm: "text-sm",
@@ -109,46 +128,72 @@ export function TodayMenu({
   };
 
   return (
-    <div className="flex flex-col">
-      {showDate && (
-        <span className={`text-xs text-muted-foreground`}>
-          {todayDate}
-        </span>
-      )}
-      {loading ? (
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-5 w-20" />
+    <div className="flex items-center justify-between gap-2 w-full">
+      {/* Left side: Date and Menu Name */}
+      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+        {showDate && mounted && (
+          <span className="text-xs text-muted-foreground leading-tight">
+            {todayDate}
+          </span>
+        )}
+        {showDate && !mounted && (
+          <Skeleton className="h-3 w-24" />
+        )}
+        {loading ? (
+          <Skeleton
+            className={`${textSize === "sm" ? "h-4" :
+              textSize === "md" ? "h-5" :
+                textSize === "lg" ? "h-6" :
+                  textSize === "xl" ? "h-7" :
+                    "h-8"
+              } w-32`}
+          />
+        ) : isSunday ? (
+          <span className={`font-semibold ${textSizeClasses[textSize]} text-muted-foreground italic leading-tight`}>
+            No meal today
+          </span>
+        ) : menuName ? (
+          <span className={`font-semibold ${textSizeClasses[textSize]} leading-tight truncate`}>
+            {menuName}
+          </span>
+        ) : (
+          <span className={`font-semibold ${textSizeClasses[textSize]} text-muted-foreground italic leading-tight`}>
+            Not set
+          </span>
+        )}
+      </div>
+
+      {/* Right side: Image */}
+      <div className="shrink-0">
+        {loading ? (
           <Skeleton
             className="rounded-full"
             style={{ width: imageSize, height: imageSize }}
           />
-        </div>
-      ) : isSunday ? (
-        <div className="flex items-center gap-2">
-          <span className={`font-semibold ${textSizeClasses[textSize]} text-muted-foreground italic`}>
-            No meal today
-          </span>
+        ) : isSunday ? (
           <div
-            className="rounded-full border border-border bg-muted flex items-center justify-center"
+            className="rounded-full border border-border bg-muted flex items-center justify-center shadow-sm"
             style={{ width: imageSize, height: imageSize }}
           >
             <span className="text-xs text-muted-foreground">☀️</span>
           </div>
-        </div>
-      ) : (
-        <div className="flex items-center gap-2">
-          <span className={`font-semibold ${textSizeClasses[textSize]}`}>
-            {menuName}
-          </span>
+        ) : menuName ? (
           <Image
             src={menuImage}
             alt={menuName}
             width={imageSize}
             height={imageSize}
-            className="rounded-full border border-border object-cover"
+            className="rounded-full border border-border object-cover shadow-sm"
           />
-        </div>
-      )}
+        ) : (
+          <div
+            className="rounded-full border border-border bg-muted flex items-center justify-center shadow-sm"
+            style={{ width: imageSize, height: imageSize }}
+          >
+            <span className="text-xs text-muted-foreground">📋</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

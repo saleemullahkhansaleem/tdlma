@@ -21,6 +21,7 @@ import {
 } from "@/lib/types/attendance";
 import { CreateGuestDto, Guest } from "@/lib/types/guest";
 import { Settings, UpdateSettingsDto } from "@/lib/types/settings";
+import { OffDay, CreateOffDayDto, UpdateOffDayDto } from "@/lib/types/off-days";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -509,6 +510,238 @@ export async function updateSettings(
     throw new Error(
       error.error || error.message || "Failed to update settings"
     );
+  }
+
+  return response.json();
+}
+
+// Off Days API
+export async function getOffDays(user: AppUser): Promise<OffDay[]> {
+  const response = await fetch(`${API_BASE}/api/off-days`, {
+    headers: getAuthHeaders(user),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to fetch off days" }));
+    throw new Error(error.error || error.message || "Failed to fetch off days");
+  }
+
+  return response.json();
+}
+
+export async function createOffDay(
+  data: CreateOffDayDto,
+  user: AppUser
+): Promise<OffDay> {
+  const response = await fetch(`${API_BASE}/api/off-days`, {
+    method: "POST",
+    headers: getAuthHeaders(user),
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to create off day" }));
+    throw new Error(error.error || error.message || "Failed to create off day");
+  }
+
+  return response.json();
+}
+
+export async function updateOffDay(
+  id: string,
+  data: UpdateOffDayDto,
+  user: AppUser
+): Promise<OffDay> {
+  const response = await fetch(`${API_BASE}/api/off-days/${id}`, {
+    method: "PATCH",
+    headers: getAuthHeaders(user),
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to update off day" }));
+    throw new Error(error.error || error.message || "Failed to update off day");
+  }
+
+  return response.json();
+}
+
+export async function deleteOffDay(id: string, user: AppUser): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/off-days/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(user),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to delete off day" }));
+    throw new Error(error.error || error.message || "Failed to delete off day");
+  }
+}
+
+// Password Management Functions
+
+export async function forgotPassword(
+  email: string
+): Promise<{ message: string }> {
+  const response = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to request password reset" }));
+    throw new Error(
+      error.error || error.message || "Failed to request password reset"
+    );
+  }
+
+  return response.json();
+}
+
+export async function resetPassword(
+  token: string,
+  password: string
+): Promise<{ message: string }> {
+  const response = await fetch(`${API_BASE}/api/auth/reset-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ token, password }),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to reset password" }));
+    throw new Error(error.error || error.message || "Failed to reset password");
+  }
+
+  return response.json();
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+  user: AppUser
+): Promise<{ message: string }> {
+  const response = await fetch(`${API_BASE}/api/auth/change-password`, {
+    method: "POST",
+    headers: getAuthHeaders(user),
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to change password" }));
+    throw new Error(
+      error.error || error.message || "Failed to change password"
+    );
+  }
+
+  return response.json();
+}
+
+// Dashboard Stats Functions (Admin Only)
+
+export interface DashboardStats {
+  totalUsers: number;
+  employeeCount: number;
+  studentCount: number;
+  today: {
+    mealsBooked: number;
+    mealsClosed: number;
+    present: number;
+    absent: number;
+    unclosed: number;
+    unopened: number;
+    totalLoss: number;
+  };
+  period: {
+    present: number;
+    absent: number;
+    unclosed: number;
+    unopened: number;
+    totalFine: number;
+  };
+  trends: Array<{
+    date: string;
+    present: number;
+    absent: number;
+    unclosed: number;
+    unopened: number;
+  }>;
+}
+
+export async function getDashboardStats(
+  user: AppUser,
+  period: "today" | "week" | "month" = "today"
+): Promise<DashboardStats> {
+  const response = await fetch(
+    `${API_BASE}/api/admin/dashboard-stats?period=${period}`,
+    {
+      headers: getAuthHeaders(user),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to fetch dashboard stats" }));
+    throw new Error(
+      error.error || error.message || "Failed to fetch dashboard stats"
+    );
+  }
+
+  return response.json();
+}
+
+// Profile Management Functions
+
+export async function getProfile(user: AppUser): Promise<User> {
+  const response = await fetch(`${API_BASE}/api/user/profile`, {
+    headers: getAuthHeaders(user),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to fetch profile" }));
+    throw new Error(error.error || error.message || "Failed to fetch profile");
+  }
+
+  return response.json();
+}
+
+export async function updateProfile(
+  data: UpdateUserDto,
+  user: AppUser
+): Promise<User> {
+  const response = await fetch(`${API_BASE}/api/user/profile`, {
+    method: "PATCH",
+    headers: getAuthHeaders(user),
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to update profile" }));
+    throw new Error(error.error || error.message || "Failed to update profile");
   }
 
   return response.json();

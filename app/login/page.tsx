@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,12 +50,12 @@ export default function LoginPage() {
             <div className="flex flex-col gap-1.5 text-sm">
               <div className="flex items-center justify-between">
                 <label className="font-medium">Password</label>
-                <button
-                  type="button"
+                <Link
+                  href="/forgot-password"
                   className="text-xs text-primary hover:underline"
                 >
                   Forgot Password?
-                </button>
+                </Link>
               </div>
               <Input
                 type="password"
@@ -93,9 +94,9 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <p className="text-center text-xs text-muted-foreground">
+          {/* <p className="text-center text-xs text-muted-foreground">
             Don&apos;t have an account? <span className="text-primary font-medium">Signup</span>
-          </p>
+          </p> */}
         </CardContent>
       </Card>
     </div>

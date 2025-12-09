@@ -14,7 +14,7 @@ import {
 import { AttendanceWithUser } from "@/lib/types/attendance";
 import { createAttendance, updateAttendance, deleteAttendance, getSettings } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
-import { cn } from "@/lib/utils";
+import { cn, calculateRemark } from "@/lib/utils";
 
 export interface AttendanceListProps {
   attendance: AttendanceWithUser[];
@@ -39,6 +39,10 @@ export function AttendanceList({ attendance, onUpdate, onItemUpdate, selectedDat
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
   const [closeTime, setCloseTime] = useState<string>("18:00");
   const [isBeforeCloseTime, setIsBeforeCloseTime] = useState<boolean>(false);
+  const [fineSettings, setFineSettings] = useState<{
+    fineAmountUnclosed: string;
+    fineAmountUnopened: string;
+  } | null>(null);
 
   // Get today's date in local timezone
   const getLocalDateString = (date: Date): string => {
@@ -56,6 +60,10 @@ export function AttendanceList({ attendance, onUpdate, onItemUpdate, selectedDat
       try {
         const settings = await getSettings(currentUser);
         setCloseTime(settings.closeTime);
+        setFineSettings({
+          fineAmountUnclosed: settings.fineAmountUnclosed.toString(),
+          fineAmountUnopened: settings.fineAmountUnopened.toString(),
+        });
 
         const todayString = getLocalDateString(new Date());
         const isToday = selectedDate === todayString;
@@ -119,20 +127,34 @@ export function AttendanceList({ attendance, onUpdate, onItemUpdate, selectedDat
               ...currentItem,
               status: null,
               remark: null,
+              fineAmount: "0", // Reset fine when status is reset
               updatedAt: new Date(),
             });
           }
 
-          // Then update in the background
+          // Then update in the background (API will reset fine to 0)
           updateAttendance(
             attendanceId,
             { status: null },
             currentUser
-          ).catch((error) => {
-            console.error("Failed to reset attendance:", error);
-            // On error, reload all data
-            onUpdate();
-          });
+          )
+            .then((response) => {
+              // Update with server response
+              if (currentItem && onItemUpdate) {
+                onItemUpdate({
+                  ...currentItem,
+                  status: null,
+                  remark: null,
+                  fineAmount: response.fineAmount || "0",
+                  updatedAt: response.updatedAt,
+                });
+              }
+            })
+            .catch((error) => {
+              console.error("Failed to reset attendance:", error);
+              // On error, reload all data
+              onUpdate();
+            });
         } else {
           onUpdate();
         }
@@ -162,19 +184,6 @@ export function AttendanceList({ attendance, onUpdate, onItemUpdate, selectedDat
 
     setUpdatingIds((prev) => new Set(prev).add(key));
     try {
-      // Helper to calculate remark based on status and isOpen
-      const calculateRemark = (
-        status: "Present" | "Absent" | null,
-        isOpen: boolean
-      ): "All Clear" | "Unclosed" | "Unopened" | null => {
-        if (status === null) return null;
-        if (status === "Present" && isOpen) return "All Clear";
-        if (status === "Absent" && !isOpen) return "All Clear";
-        if (status === "Absent" && isOpen) return "Unclosed";
-        if (status === "Present" && !isOpen) return "Unopened";
-        return null;
-      };
-
       if (attendanceId) {
         // Find the current item
         const currentItem = attendance.find((a) => a.id === attendanceId);
@@ -183,24 +192,48 @@ export function AttendanceList({ attendance, onUpdate, onItemUpdate, selectedDat
         // Optimistically update local state immediately
         if (currentItem && onItemUpdate) {
           const calculatedRemark = calculateRemark(newStatus, isOpen);
+          // Calculate fine amount optimistically
+          let calculatedFine = "0";
+          if (fineSettings) {
+            if (calculatedRemark === "Unclosed") {
+              calculatedFine = fineSettings.fineAmountUnclosed;
+            } else if (calculatedRemark === "Unopened") {
+              calculatedFine = fineSettings.fineAmountUnopened;
+            }
+          }
+
           onItemUpdate({
             ...currentItem,
             status: newStatus,
-            remark: calculatedRemark,
+            remark: calculatedRemark, // Computed from status and isOpen
+            fineAmount: calculatedFine,
             updatedAt: new Date(),
           });
         }
 
-        // Then update in the background
+        // Then update in the background (API will calculate and save fine)
         updateAttendance(
           attendanceId,
           { status: newStatus },
           currentUser
-        ).catch((error) => {
-          console.error("Failed to update attendance:", error);
-          // On error, reload all data
-          onUpdate();
-        });
+        )
+          .then((response) => {
+            // Update with server response including calculated fine
+            if (currentItem && onItemUpdate) {
+              onItemUpdate({
+                ...currentItem,
+                status: newStatus,
+                remark: response.remark,
+                fineAmount: response.fineAmount || "0",
+                updatedAt: response.updatedAt,
+              });
+            }
+          })
+          .catch((error) => {
+            console.error("Failed to update attendance:", error);
+            // On error, reload all data
+            onUpdate();
+          });
       } else {
         // Find the user info from current attendance list
         const currentItem = attendance.find((a) => a.userId === userId);
@@ -209,6 +242,16 @@ export function AttendanceList({ attendance, onUpdate, onItemUpdate, selectedDat
 
         // Optimistically add the new item if we have user info
         if (currentItem && onItemUpdate) {
+          // Calculate fine amount optimistically
+          let calculatedFine = "0";
+          if (fineSettings) {
+            if (calculatedRemark === "Unclosed") {
+              calculatedFine = fineSettings.fineAmountUnclosed;
+            } else if (calculatedRemark === "Unopened") {
+              calculatedFine = fineSettings.fineAmountUnopened;
+            }
+          }
+
           const newItem: AttendanceWithUser = {
             id: `temp-${Date.now()}`, // Temporary ID
             userId,
@@ -216,8 +259,8 @@ export function AttendanceList({ attendance, onUpdate, onItemUpdate, selectedDat
             mealType: mealType as any,
             status: newStatus,
             isOpen: true,
-            remark: calculatedRemark,
-            fineAmount: "0",
+            remark: calculatedRemark, // Computed from status and isOpen
+            fineAmount: calculatedFine,
             user: currentItem.user,
             guestCount: currentItem.guestCount || 0,
             createdAt: new Date(),
@@ -236,12 +279,12 @@ export function AttendanceList({ attendance, onUpdate, onItemUpdate, selectedDat
             currentUser
           )
             .then((response) => {
-              // Update with real ID and data from server
+              // Update with real ID and data from server (remark is computed by API)
               onItemUpdate({
                 ...newItem,
                 id: response.id,
                 status: newStatus,
-                remark: response.remark || calculatedRemark,
+                remark: response.remark, // Computed by API from status and isOpen
                 isOpen: response.isOpen ?? true,
                 fineAmount: response.fineAmount || "0",
                 createdAt: response.createdAt,
@@ -335,11 +378,11 @@ export function AttendanceList({ attendance, onUpdate, onItemUpdate, selectedDat
     // If status is null or buttons are expanded, show both buttons
     if (currentStatus === null || !isCollapsed) {
       return (
-        <div className="flex gap-2">
+        <div className="flex gap-1.5 sm:gap-2 flex-wrap">
           <Button
             size="sm"
             variant="outline"
-            className="h-7 rounded-full px-4 text-xs bg-muted text-muted-foreground hover:bg-muted/80"
+            className="h-7 rounded-full px-3 sm:px-4 text-xs bg-muted text-muted-foreground hover:bg-muted/80 whitespace-nowrap"
             onClick={() =>
               handleAttendanceClick(
                 userId,
@@ -358,7 +401,7 @@ export function AttendanceList({ attendance, onUpdate, onItemUpdate, selectedDat
           <Button
             size="sm"
             variant="outline"
-            className="h-7 rounded-full px-4 text-xs bg-muted text-muted-foreground hover:bg-muted/80"
+            className="h-7 rounded-full px-3 sm:px-4 text-xs bg-muted text-muted-foreground hover:bg-muted/80 whitespace-nowrap"
             onClick={() =>
               handleAttendanceClick(
                 userId,
@@ -383,7 +426,7 @@ export function AttendanceList({ attendance, onUpdate, onItemUpdate, selectedDat
           size="sm"
           variant={currentStatus === "Present" ? "default" : "destructive"}
           className={cn(
-            " text-xs min-w-[84px]",
+            "text-xs min-w-[70px] sm:min-w-[84px] whitespace-nowrap",
           )}
           onClick={() =>
             handleAttendanceClick(
@@ -405,57 +448,67 @@ export function AttendanceList({ attendance, onUpdate, onItemUpdate, selectedDat
   };
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Attendance</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Remarks</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {attendance.map((item) => {
-            const status: "Present" | "Absent" | null =
-              item.status === "Present" || item.status === "Absent" ? item.status : null;
-            const remark = item.remark || null;
+    <div className="rounded-md border overflow-hidden">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="min-w-[150px] sm:min-w-[200px]">Name</TableHead>
+              <TableHead className="min-w-[180px] sm:min-w-[220px]">Attendance</TableHead>
+              <TableHead className="min-w-[100px] sm:min-w-[120px]">Status</TableHead>
+              <TableHead className="min-w-[100px] sm:min-w-[120px]">Remarks</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {attendance.map((item) => {
+              const status: "Present" | "Absent" | null =
+                item.status === "Present" || item.status === "Absent" ? item.status : null;
 
-            // Determine status badge (open/close) based on isOpen field
-            const isOpen = item.isOpen ?? true;
-            const statusBadge: "open" | "close" = isOpen ? "open" : "close";
+              // Determine status badge (open/close) based on isOpen field
+              const isOpen = item.isOpen ?? true;
+              const statusBadge: "open" | "close" = isOpen ? "open" : "close";
 
-            return (
-              <TableRow key={item.userId}>
-                <TableCell>
-                  <div className="font-medium uppercase tracking-tight">
-                    {item.user.name}
-                    {item.guestCount !== undefined && item.guestCount !== null && item.guestCount > 0 && (
-                      <Badge
-                        variant="outline"
-                        className="ml-2 text-xs font-normal normal-case bg-muted"
-                      >
-                        {item.guestCount} {item.guestCount === 1 ? "Guest" : "Guests"}
-                      </Badge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {getAttendanceButtons(
-                    item.userId,
-                    item.id || null,
-                    status,
-                    item.date,
-                    item.mealType
-                  )}
-                </TableCell>
-                <TableCell>{getStatusBadge(statusBadge)}</TableCell>
-                <TableCell>{getRemarkBadge(remark)}</TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+              // Calculate remark from status and isOpen (computed, not stored)
+              const remark = calculateRemark(status, isOpen);
+
+              return (
+                <TableRow key={item.userId}>
+                  <TableCell className="min-w-[150px] sm:min-w-[200px]">
+                    <div className="font-medium uppercase tracking-tight">
+                      {item.user.name}
+                      {item.guestCount !== undefined && item.guestCount !== null && item.guestCount > 0 && (
+                        <Badge
+                          variant="outline"
+                          className="ml-2 text-xs font-normal normal-case bg-muted whitespace-nowrap"
+                        >
+                          {item.guestCount} {item.guestCount === 1 ? "Guest" : "Guests"}
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="min-w-[180px] sm:min-w-[220px]">
+                    <div className="flex flex-wrap gap-2">
+                      {getAttendanceButtons(
+                        item.userId,
+                        item.id || null,
+                        status,
+                        item.date,
+                        item.mealType
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="min-w-[100px] sm:min-w-[120px]">
+                    {getStatusBadge(statusBadge)}
+                  </TableCell>
+                  <TableCell className="min-w-[100px] sm:min-w-[120px]">
+                    {getRemarkBadge(remark)}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

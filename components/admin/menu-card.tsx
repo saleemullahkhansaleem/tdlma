@@ -4,6 +4,8 @@ import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Menu, MenuItem } from "@/lib/types/menu";
+import { Badge } from "../ui/badge";
+import { Edit, Plus } from "lucide-react";
 
 interface MenuCardProps {
   day: string;
@@ -20,10 +22,15 @@ export function MenuCard({ day, menu, weekType, onEdit }: MenuCardProps) {
     <Card className="border-secondary">
       <CardContent className="p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between gap-4">
-          <div className="space-y-1 text-sm">
-            <p className="font-medium">Day: {day.toUpperCase()}</p>
-            <p className="text-muted-foreground">
-              Menu: {menuItem?.name || "Not set"}
+          <div className="space-y-1.5 text-sm">
+            <Badge
+              variant="soft"
+              className="rounded-full text-xs font-semibold"
+            >
+              {day}
+            </Badge>
+            <p className={`font-semibold text-base ${menuItem?.name ? "text-foreground" : "text-muted-foreground italic"}`}>
+              {menuItem?.name || "Not set"}
             </p>
           </div>
           {menuItem?.imageUrl ? (
@@ -40,11 +47,25 @@ export function MenuCard({ day, menu, weekType, onEdit }: MenuCardProps) {
             </div>
           )}
         </div>
+        {/* Import Lucide Icons at the top of your file:
+            import { Plus, Pencil } from "lucide-react";
+        */}
         <Button
           onClick={onEdit}
-          className="self-start mt-1 rounded-full bg-primary px-5 py-1.5 text-xs font-medium text-primary-foreground shadow-sm"
+          size="sm"
+          className="self-start mt-1"
         >
-          {menuItem ? "Edit" : "Add Menu"}
+          {menuItem ? (
+            <>
+              <Edit className="w-4 h-4" />
+              Edit
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4" />
+              Add Menu
+            </>
+          )}
         </Button>
       </CardContent>
     </Card>

@@ -25,7 +25,9 @@ import { Badge } from "@/components/ui/badge";
 import { FeedbackResponseModal } from "./feedback-response-modal";
 import { FeedbackCategory, FeedbackType, FeedbackStatus } from "@/lib/types/feedback";
 import { format } from "date-fns";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Search, AlertCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar } from "@/components/ui/avatar";
 
 const CATEGORIES: FeedbackCategory[] = [
   "Food",
@@ -142,26 +144,36 @@ export function FeedbackManagement() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-xl font-semibold">Feedback Management</h2>
-        <p className="text-sm text-muted-foreground">
-          View, filter, and respond to user feedback, suggestions, and complaints
-        </p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <MessageSquare className="h-6 w-6 text-primary" />
+            Feedback Management
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            View, filter, and respond to user feedback, suggestions, and complaints
+          </p>
+        </div>
       </div>
+
       {/* Filters and Search */}
       <div className="space-y-4 rounded-md border bg-card p-4">
-        <div className="flex flex-wrap gap-3">
-          <div className="flex-1 min-w-[200px]">
-            <Input
-              placeholder="Search by title, description, or user..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search by title, description, or user..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 w-full"
+              />
+            </div>
           </div>
 
-          <div className="min-w-[150px]">
+          <div className="w-full sm:w-auto sm:min-w-[150px]">
             <Select
               value={filters.category || "all"}
               onValueChange={(value) => handleFilterChange("category", value)}
@@ -180,7 +192,7 @@ export function FeedbackManagement() {
             </Select>
           </div>
 
-          <div className="min-w-[150px]">
+          <div className="w-full sm:w-auto sm:min-w-[150px]">
             <Select
               value={filters.type || "all"}
               onValueChange={(value) => handleFilterChange("type", value)}
@@ -199,7 +211,7 @@ export function FeedbackManagement() {
             </Select>
           </div>
 
-          <div className="min-w-[150px]">
+          <div className="w-full sm:w-auto sm:min-w-[150px]">
             <Select
               value={filters.status || "all"}
               onValueChange={(value) => handleFilterChange("status", value)}
@@ -225,7 +237,7 @@ export function FeedbackManagement() {
                 setFilters({});
                 setPage(1);
               }}
-              className="rounded-full"
+              className="rounded-full w-full sm:w-auto"
             >
               Clear Filters
             </Button>
@@ -233,115 +245,159 @@ export function FeedbackManagement() {
         </div>
       </div>
 
+      {/* Error Message */}
+      {error && (
+        <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4 flex items-center gap-3">
+          <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
+          <p className="text-sm font-medium text-destructive">{error}</p>
+        </div>
+      )}
+
       {/* Stats */}
-      <div className="text-sm text-muted-foreground">
-        Showing {filteredFeedback.length} of {total} feedback entries
-      </div>
+      {!loading && (
+        <div className="text-sm text-muted-foreground">
+          Showing {filteredFeedback.length} of {total} feedback entries
+        </div>
+      )}
 
       {/* Table */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <p className="text-muted-foreground">Loading feedback...</p>
-        </div>
-      ) : error ? (
-        <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
-          {error}
-        </div>
-      ) : filteredFeedback.length === 0 ? (
+      {filteredFeedback.length === 0 && !loading ? (
         <div className="rounded-md border bg-card p-12 text-center">
           <MessageSquare className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
           <p className="text-muted-foreground">No feedback found</p>
         </div>
       ) : (
-        <>
-          <div className="rounded-md border">
+        <div className="rounded-md border overflow-hidden">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="min-w-[180px] sm:min-w-[200px]">User</TableHead>
+                  <TableHead className="min-w-[150px] sm:min-w-[200px]">Title</TableHead>
+                  <TableHead className="min-w-[100px]">Category</TableHead>
+                  <TableHead className="min-w-[100px]">Type</TableHead>
+                  <TableHead className="min-w-[100px]">Status</TableHead>
+                  <TableHead className="min-w-[120px]">Date</TableHead>
+                  <TableHead className="text-right min-w-[140px] sm:min-w-[160px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredFeedback.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{item.user.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.user.email}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-[200px]">
-                      <p className="truncate font-medium">{item.title}</p>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="soft">{item.category}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getTypeColor(item.type)}>
-                        {item.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusVariant(item.status)}>
-                        {item.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {format(new Date(item.createdAt), "MMM dd, yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewFeedback(item)}
-                        className="rounded-full"
-                      >
-                        View & Respond
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {loading ? (
+                  // Skeleton rows
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="min-w-[180px] sm:min-w-[200px]">
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-8 w-8 rounded-full" />
+                          <div className="space-y-1">
+                            <Skeleton className="h-4 w-24" />
+                            <Skeleton className="h-3 w-32" />
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="min-w-[150px] sm:min-w-[200px]">
+                        <Skeleton className="h-4 w-32" />
+                      </TableCell>
+                      <TableCell className="min-w-[100px]">
+                        <Skeleton className="h-5 w-16 rounded-full" />
+                      </TableCell>
+                      <TableCell className="min-w-[100px]">
+                        <Skeleton className="h-5 w-20 rounded-full" />
+                      </TableCell>
+                      <TableCell className="min-w-[100px]">
+                        <Skeleton className="h-5 w-16 rounded-full" />
+                      </TableCell>
+                      <TableCell className="min-w-[120px]">
+                        <Skeleton className="h-4 w-20" />
+                      </TableCell>
+                      <TableCell className="text-right min-w-[140px] sm:min-w-[160px]">
+                        <Skeleton className="h-8 w-32 rounded-full ml-auto" />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  filteredFeedback.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="min-w-[180px] sm:min-w-[200px]">
+                        <div className="flex items-center gap-2">
+                          <Avatar
+                            alt={item.user.name}
+                            fallback={item.user.name[0]}
+                            className="h-8 w-8 shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{item.user.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {item.user.email}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="min-w-[150px] sm:min-w-[200px]">
+                        <p className="truncate font-medium">{item.title}</p>
+                      </TableCell>
+                      <TableCell className="min-w-[100px]">
+                        <Badge variant="soft">{item.category}</Badge>
+                      </TableCell>
+                      <TableCell className="min-w-[100px]">
+                        <Badge variant={getTypeColor(item.type)}>
+                          {item.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="min-w-[100px]">
+                        <Badge variant={getStatusVariant(item.status)}>
+                          {item.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground min-w-[120px]">
+                        {format(new Date(item.createdAt), "MMM dd, yyyy")}
+                      </TableCell>
+                      <TableCell className="text-right min-w-[140px] sm:min-w-[160px]">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewFeedback(item)}
+                          className="rounded-full whitespace-nowrap"
+                        >
+                          View & Respond
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
+        </div>
+      )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
-                Page {page} of {totalPages}
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="rounded-full"
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="rounded-full"
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
-        </>
+      {/* Pagination */}
+      {!loading && totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-sm text-muted-foreground">
+            Page {page} of {totalPages}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="rounded-full"
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="rounded-full"
+            >
+              Next
+            </Button>
+          </div>
+        </div>
       )}
 
       <FeedbackResponseModal

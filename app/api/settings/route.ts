@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
           closeTime: "18:00",
           fineAmountUnclosed: "0",
           fineAmountUnopened: "0",
-          disabledDates: [],
         })
         .returning();
     }
@@ -30,7 +29,6 @@ export async function GET(request: NextRequest) {
       closeTime: settingsRow.closeTime,
       fineAmountUnclosed: parseFloat(settingsRow.fineAmountUnclosed || "0"),
       fineAmountUnopened: parseFloat(settingsRow.fineAmountUnopened || "0"),
-      disabledDates: settingsRow.disabledDates || [],
       createdAt: settingsRow.createdAt,
       updatedAt: settingsRow.updatedAt,
     });
@@ -89,29 +87,6 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Validate disabled dates format
-    if (body.disabledDates) {
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-      for (const date of body.disabledDates) {
-        if (!dateRegex.test(date)) {
-          return NextResponse.json(
-            { error: `Invalid date format: ${date}. Expected YYYY-MM-DD` },
-            { status: 400 }
-          );
-        }
-        // Check if date is in the future
-        const dateObj = new Date(date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        if (dateObj < today) {
-          return NextResponse.json(
-            { error: `Cannot disable past dates: ${date}` },
-            { status: 400 }
-          );
-        }
-      }
-    }
-
     // Get or create settings
     let [existingSettings] = await db.select().from(settings).limit(1);
 
@@ -128,9 +103,6 @@ export async function PATCH(request: NextRequest) {
     if (body.fineAmountUnopened !== undefined) {
       updateData.fineAmountUnopened = body.fineAmountUnopened.toString();
     }
-    if (body.disabledDates !== undefined) {
-      updateData.disabledDates = body.disabledDates;
-    }
 
     let updatedSettings;
     if (existingSettings) {
@@ -146,7 +118,6 @@ export async function PATCH(request: NextRequest) {
           closeTime: body.closeTime || "18:00",
           fineAmountUnclosed: (body.fineAmountUnclosed || 0).toString(),
           fineAmountUnopened: (body.fineAmountUnopened || 0).toString(),
-          disabledDates: body.disabledDates || [],
         })
         .returning();
     }
@@ -156,7 +127,6 @@ export async function PATCH(request: NextRequest) {
       closeTime: updatedSettings.closeTime,
       fineAmountUnclosed: parseFloat(updatedSettings.fineAmountUnclosed || "0"),
       fineAmountUnopened: parseFloat(updatedSettings.fineAmountUnopened || "0"),
-      disabledDates: updatedSettings.disabledDates || [],
       createdAt: updatedSettings.createdAt,
       updatedAt: updatedSettings.updatedAt,
     });

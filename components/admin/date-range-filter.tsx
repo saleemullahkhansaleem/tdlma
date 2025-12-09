@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -23,6 +23,11 @@ export function DateRangeFilter({
   onDateRangeChange,
 }: DateRangeFilterProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Get current month range
   const getCurrentMonthRange = () => {
@@ -97,64 +102,80 @@ export function DateRangeFilter({
   const maxDate = getLocalDateString(today);
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-      <DropdownMenuTrigger asChild>
+    <>
+      {mounted ? (
+        <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "w-full md:w-auto justify-start text-left font-normal rounded-full",
+                !startDate && !endDate && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {formatDateRange()}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-auto p-4">
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCurrentMonth}
+                  className="text-xs"
+                >
+                  Current Month
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleLastMonth}
+                  className="text-xs"
+                >
+                  Last Month
+                </Button>
+              </div>
+              <div className="flex gap-2 items-center">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">From</label>
+                  <Input
+                    type="date"
+                    value={startDate ? getLocalDateString(startDate) : ""}
+                    onChange={handleStartDateChange}
+                    max={maxDate}
+                    className="w-40"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">To</label>
+                  <Input
+                    type="date"
+                    value={endDate ? getLocalDateString(endDate) : ""}
+                    onChange={handleEndDateChange}
+                    max={maxDate}
+                    min={startDate ? getLocalDateString(startDate) : undefined}
+                    className="w-40"
+                  />
+                </div>
+              </div>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
         <Button
           variant="outline"
           className={cn(
             "w-full md:w-auto justify-start text-left font-normal rounded-full",
             !startDate && !endDate && "text-muted-foreground"
           )}
+          disabled
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
           {formatDateRange()}
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-auto p-4">
-        <div className="space-y-3">
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleCurrentMonth}
-              className="text-xs"
-            >
-              Current Month
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleLastMonth}
-              className="text-xs"
-            >
-              Last Month
-            </Button>
-          </div>
-          <div className="flex gap-2 items-center">
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">From</label>
-              <Input
-                type="date"
-                value={startDate ? getLocalDateString(startDate) : ""}
-                onChange={handleStartDateChange}
-                max={maxDate}
-                className="w-40"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">To</label>
-              <Input
-                type="date"
-                value={endDate ? getLocalDateString(endDate) : ""}
-                onChange={handleEndDateChange}
-                max={maxDate}
-                min={startDate ? getLocalDateString(startDate) : undefined}
-                className="w-40"
-              />
-            </div>
-          </div>
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      )}
+    </>
   );
 }

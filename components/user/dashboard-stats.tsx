@@ -26,14 +26,14 @@ export function DashboardStats({ stats, loading = false }: DashboardStatsProps) 
     { label: "Open", value: stats.open },
     { label: "Unclosed", value: stats.unclosed },
     { label: "Unopened", value: stats.unopened },
-    { label: "Total fine", value: `Rs ${stats.totalFine}/-` },
+    { label: "Total fine (Rs)", value: `${stats.totalFine}/-` },
   ];
 
   return (
-    <div className="grid gap-1 md:gap-2 grid-cols-2 sm:grid-cols-4 md:grid-cols-8">
+    <div className="grid gap-1 md:gap-2 grid-cols-3 sm:grid-cols-4 md:grid-cols-8">
       {statItems.map((item, idx) => (
         <Card key={item.label} className="rounded-md border border-border">
-          <CardContent className="p-3 flex flex-col items-center gap-2">
+          <CardContent className="p-1 sm:p-3 flex flex-col items-center gap-2">
             {loading ? (
               <>
                 <Skeleton className="h-10 w-full" />

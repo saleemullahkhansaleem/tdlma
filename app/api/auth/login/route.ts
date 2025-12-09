@@ -44,7 +44,25 @@ export async function POST(request: NextRequest) {
     // Return user without password hash
     const { passwordHash, ...userWithoutPassword } = user;
 
-    return NextResponse.json(userWithoutPassword);
+    // Create response with user data
+    const response = NextResponse.json(userWithoutPassword);
+
+    // Set httpOnly cookie for server-side authentication
+    // Cookie contains user role for middleware access
+    const authData = JSON.stringify({
+      id: userWithoutPassword.id,
+      role: userWithoutPassword.role,
+    });
+
+    response.cookies.set("tdlma_auth_token", authData, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: "/",
+    });
+
+    return response;
   } catch (error: any) {
     console.error("Error during login:", error);
     return NextResponse.json(

@@ -10,13 +10,15 @@ export type AppUser = {
   name: string;
   email: string;
   role: UserRole;
+  designation?: string | null;
+  userType?: "employee" | "student" | null;
 };
 
 type AuthContextValue = {
   user: AppUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -44,7 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      if (!pathname?.startsWith("/login")) {
+      const publicRoutes = ["/login", "/forgot-password", "/reset-password"];
+      const isPublicRoute = publicRoutes.some((route) => pathname?.startsWith(route));
+      if (!isPublicRoute) {
         router.replace("/login");
       }
       return;
@@ -55,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user.role === "admin" || user.role === "super_admin") {
         router.replace("/admin/dashboard");
       } else {
-        router.replace("/");
+        router.replace("/user/dashboard");
       }
     }
   }, [user, loading, pathname, router]);
@@ -85,6 +89,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: userData.name,
         email: userData.email,
         role: userData.role,
+        designation: userData.designation || null,
+        userType: userData.userType || null,
       };
 
       setUser(appUser);
@@ -95,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (appUser.role === "admin" || appUser.role === "super_admin") {
         router.replace("/admin/dashboard");
       } else {
-        router.replace("/");
+        router.replace("/user/dashboard");
       }
     } catch (error: any) {
       setLoading(false);
@@ -105,7 +111,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }
 
-  function logout() {
+  async function logout() {
+    // Clear server-side cookie
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+    } catch (error) {
+      console.error("Error during logout:", error);
+    }
+
+    // Clear client-side state
     setUser(null);
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_KEY);

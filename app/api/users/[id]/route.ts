@@ -170,6 +170,12 @@ export async function PATCH(
     if (body.status !== undefined) {
       updateData.status = body.status;
     }
+    if (body.designation !== undefined) {
+      updateData.designation = body.designation || null;
+    }
+    if (body.userType !== undefined) {
+      updateData.userType = body.userType || null;
+    }
     if (body.avatarUrl !== undefined) {
       updateData.avatarUrl = body.avatarUrl || null;
     }

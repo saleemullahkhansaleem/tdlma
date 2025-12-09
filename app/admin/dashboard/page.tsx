@@ -1,29 +1,20 @@
 "use client";
 
-import { StatsCard } from "@/components/admin/stats-card";
+import { DashboardStatsComponent } from "@/components/admin/dashboard-stats";
+import { DashboardChartsComponent } from "@/components/admin/dashboard-charts";
 
 export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold">Expectations:</h2>
-        <div className="grid gap-4 md:grid-cols-4">
-          <StatsCard label="Total Consumers" value="50" />
-          <StatsCard label="Meals Booked Today" value="35" />
-          <StatsCard label="Meals closed Today" value="15" />
-          <StatsCard label="Total Loss" value="0" />
-        </div>
-      </section>
+      <div className="space-y-1">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">
+          Overview of attendance, users, and statistics
+        </p>
+      </div>
 
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold">Reality:</h2>
-        <div className="grid gap-4 md:grid-cols-4">
-          <StatsCard label="Total Present" value="35" />
-          <StatsCard label="Total Absent" value="5" />
-          <StatsCard label="Total Unclosed" value="2" />
-          <StatsCard label="Total Unopened" value="16" />
-        </div>
-      </section>
+      <DashboardStatsComponent />
+      <DashboardChartsComponent />
     </div>
   );
 }

@@ -47,10 +47,10 @@ export default function MyFeedbackPage() {
     <div className="min-h-screen bg-muted px-4 py-6 md:px-8">
       <div className="mx-auto max-w-4xl">
         <div className="mb-6">
-          <Link href="/">
+          <Link href="/user/dashboard">
             <Button variant="ghost" size="sm" className="mb-4 rounded-full">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Home
+              Back to Dashboard
             </Button>
           </Link>
           <div className="flex items-center justify-between">

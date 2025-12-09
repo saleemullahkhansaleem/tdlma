@@ -37,11 +37,6 @@ export const attendanceStatusEnum = pgEnum("attendance_status", [
   "Present",
   "Absent",
 ]);
-export const remarkEnum = pgEnum("remark", [
-  "All Clear",
-  "Unclosed",
-  "Unopened",
-]);
 export const themeEnum = pgEnum("theme", ["light", "dark"]);
 export const feedbackCategoryEnum = pgEnum("feedback_category", [
   "Food",
@@ -64,6 +59,7 @@ export const feedbackStatusEnum = pgEnum("feedback_status", [
   "Reviewed",
   "Resolved",
 ]);
+export const userTypeEnum = pgEnum("user_type", ["employee", "student"]);
 
 // Users Table
 export const users = pgTable("users", {
@@ -73,6 +69,8 @@ export const users = pgTable("users", {
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   role: userRoleEnum("role").notNull(),
   status: userStatusEnum("status").default("Active").notNull(),
+  designation: varchar("designation", { length: 255 }),
+  userType: userTypeEnum("user_type"),
   avatarUrl: varchar("avatar_url", { length: 512 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -98,7 +96,7 @@ export const attendance = pgTable("attendance", {
   mealType: mealTypeEnum("meal_type").notNull(),
   status: attendanceStatusEnum("status"),
   isOpen: boolean("is_open").default(true).notNull(), // Default to open, user can close it
-  remark: remarkEnum("remark"),
+  // remark is calculated from status and isOpen, not stored in DB
   fineAmount: decimal("fine_amount", { precision: 10, scale: 2 }).default("0"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -149,7 +147,6 @@ export const settings = pgTable("settings", {
   })
     .default("0")
     .notNull(),
-  disabledDates: json("disabled_dates").$type<string[]>().default([]).notNull(), // Array of date strings in YYYY-MM-DD format
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -168,4 +165,25 @@ export const feedback = pgTable("feedback", {
   response: text("response"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Off Days Table
+export const offDays = pgTable("off_days", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  date: date("date").notNull().unique(),
+  reason: text("reason").notNull(), // Clarification text explaining why it's an off day
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Password Reset Tokens Table
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });

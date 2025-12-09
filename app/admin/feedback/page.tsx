@@ -4,6 +4,7 @@ import { FeedbackManagement } from "@/components/admin/feedback-management";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AdminFeedbackPage() {
   const { user, loading } = useAuth();
@@ -21,8 +22,12 @@ export default function AdminFeedbackPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p>Loading...</p>
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-96 max-w-full" />
+        </div>
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
@@ -31,7 +36,5 @@ export default function AdminFeedbackPage() {
     return null;
   }
 
-  return (
-    <FeedbackManagement />
-  );
+  return <FeedbackManagement />;
 }

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import * as SheetPrimitive from "@radix-ui/react-dialog";
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 
 import { cn } from "@/lib/utils";
 
@@ -54,4 +55,18 @@ const SheetContent = React.forwardRef<
 ));
 SheetContent.displayName = SheetPrimitive.Content.displayName;
 
-export { Sheet, SheetTrigger, SheetClose, SheetContent };
+const SheetTitle = React.forwardRef<
+  React.ElementRef<typeof SheetPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <VisuallyHidden.Root>
+    <SheetPrimitive.Title
+      ref={ref}
+      className={className}
+      {...props}
+    />
+  </VisuallyHidden.Root>
+));
+SheetTitle.displayName = SheetPrimitive.Title.displayName;
+
+export { Sheet, SheetTrigger, SheetClose, SheetContent, SheetTitle };

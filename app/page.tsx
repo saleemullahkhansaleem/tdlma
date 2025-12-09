@@ -1,5 +1,7 @@
-import UserDashboard from "@/components/user-dashboard";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return <UserDashboard />;
+  // Middleware handles all redirects, this is just a fallback
+  // Redirect to login - middleware will handle proper routing based on auth
+  redirect("/login");
 }

@@ -1,31 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, attendance } from "@/lib/db";
+import { db, attendance, settings } from "@/lib/db";
 import { requireAdmin, requireAuth } from "@/lib/middleware/auth";
 import { UpdateAttendanceDto } from "@/lib/types/attendance";
 import { eq } from "drizzle-orm";
-
-// Helper function to auto-generate remark based on status and isOpen
-function generateRemark(
-  status: "Present" | "Absent" | null,
-  isOpen: boolean
-): "All Clear" | "Unclosed" | "Unopened" | null {
-  if (status === null) return null;
-
-  if (status === "Present" && isOpen) {
-    return "All Clear";
-  }
-  if (status === "Absent" && !isOpen) {
-    return "All Clear";
-  }
-  if (status === "Absent" && isOpen) {
-    return "Unclosed";
-  }
-  if (status === "Present" && !isOpen) {
-    return "Unopened";
-  }
-
-  return null;
-}
+import { calculateRemark } from "@/lib/utils";
 
 export async function PATCH(
   request: NextRequest,
@@ -74,9 +52,21 @@ export async function PATCH(
       updatedAt: new Date(),
     };
 
-    // Only admins can update status
+    // Determine the final status and isOpen values after update
+    const finalStatus =
+      body.status !== undefined && isAdmin
+        ? body.status === null
+          ? null
+          : body.status
+        : existingAttendance.status;
+    const finalIsOpen =
+      body.isOpen !== undefined
+        ? body.isOpen
+        : existingAttendance.isOpen ?? true;
+
+    // Only admins can update status (including setting to null)
     if (body.status !== undefined && isAdmin) {
-      updateData.status = body.status;
+      updateData.status = body.status === null ? null : body.status;
     }
 
     // Users can toggle isOpen, admins can also set it
@@ -84,42 +74,43 @@ export async function PATCH(
       updateData.isOpen = body.isOpen;
     }
 
-    // Only admins can update fine amount
-    if (body.fineAmount !== undefined && isAdmin) {
+    // Calculate and set fine amount automatically based on remark
+    // Only calculate if status or isOpen changed (not if fineAmount is manually set)
+    if (
+      body.fineAmount === undefined &&
+      (body.status !== undefined || body.isOpen !== undefined)
+    ) {
+      // Get settings to calculate fine
+      const [settingsData] = await db.select().from(settings).limit(1);
+
+      if (settingsData) {
+        // Calculate remark from final status and isOpen
+        const statusForRemark =
+          finalStatus === "Present" || finalStatus === "Absent"
+            ? finalStatus
+            : null;
+        const remark = calculateRemark(statusForRemark, finalIsOpen);
+
+        // Calculate fine based on remark
+        let calculatedFine = "0";
+        if (remark === "Unclosed") {
+          calculatedFine = settingsData.fineAmountUnclosed || "0";
+        } else if (remark === "Unopened") {
+          calculatedFine = settingsData.fineAmountUnopened || "0";
+        }
+        // "All Clear" or null means no fine (stays "0")
+
+        updateData.fineAmount = calculatedFine;
+      } else {
+        // If no settings found, set fine to 0
+        updateData.fineAmount = "0";
+      }
+    } else if (body.fineAmount !== undefined && isAdmin) {
+      // Only admins can manually set fine amount
       updateData.fineAmount = body.fineAmount.toString();
     }
 
-    // Auto-generate remark ONLY if status is NOT null
-    // If status is null, don't generate or update remark (clear it if it exists)
-    const finalStatus =
-      body.status !== undefined ? body.status : existingAttendance.status;
-    const finalIsOpen =
-      body.isOpen !== undefined
-        ? body.isOpen
-        : existingAttendance.isOpen ?? true;
-
-    // Handle remark generation/clearing
-    if (body.remark !== undefined && isAdmin) {
-      // Only admins can manually set remark
-      updateData.remark = body.remark;
-    } else if (
-      finalStatus !== null &&
-      finalStatus !== undefined &&
-      (body.status !== undefined || body.isOpen !== undefined)
-    ) {
-      // Only generate remark if status is set (not null) AND (status is being updated OR isOpen is being updated)
-      const autoRemark = generateRemark(
-        finalStatus as "Present" | "Absent",
-        finalIsOpen
-      );
-      updateData.remark = autoRemark; // Can be null, which is fine
-    } else if (
-      (finalStatus === null || finalStatus === undefined) &&
-      (body.status !== undefined || body.isOpen !== undefined)
-    ) {
-      // If status is null and we're updating, clear the remark
-      updateData.remark = null;
-    }
+    // remark is computed, not stored - no need to update it in DB
 
     const [updatedAttendance] = await db
       .update(attendance)
@@ -134,7 +125,24 @@ export async function PATCH(
       );
     }
 
-    return NextResponse.json(updatedAttendance);
+    // Calculate remark for response (computed from status and isOpen)
+    const status =
+      updatedAttendance.status === "Present" ||
+      updatedAttendance.status === "Absent"
+        ? updatedAttendance.status
+        : null;
+    const computedRemark = calculateRemark(
+      status,
+      updatedAttendance.isOpen ?? true
+    );
+
+    // Add computed remark to response
+    const response = {
+      ...updatedAttendance,
+      remark: computedRemark,
+    };
+
+    return NextResponse.json(response);
   } catch (error: any) {
     if (error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -16,9 +16,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar } from "@/components/ui/avatar";
 import { DateRangeFilter } from "@/components/admin/date-range-filter";
-import { Search } from "lucide-react";
+import { Search, BarChart2, AlertCircle } from "lucide-react";
 import { getAttendance, updateAttendance, getSettings } from "@/lib/api/client";
 import { AttendanceWithUser } from "@/lib/types/attendance";
+import { calculateRemark } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -47,7 +48,6 @@ interface ReportsStats {
   sundays: number;
   totalUsers: number;
   totalFine: number;
-  averageFinePerUser: number;
   totalOpened: number;
   totalClosed: number;
   totalUnopened: number;
@@ -65,7 +65,6 @@ export default function ViewReportsPage() {
     sundays: 0,
     totalUsers: 0,
     totalFine: 0,
-    averageFinePerUser: 0,
     totalOpened: 0,
     totalClosed: 0,
     totalUnopened: 0,
@@ -162,10 +161,16 @@ export default function ViewReportsPage() {
           userData.totalClosed++;
         }
 
-        if (att.remark === "Unclosed") {
+        // Calculate remark from status and isOpen (computed, not stored)
+        const attendanceStatus = att.status === "Present" || att.status === "Absent"
+          ? att.status
+          : null;
+        const remark = calculateRemark(attendanceStatus, isOpen);
+
+        if (remark === "Unclosed") {
           userData.totalUnclosed++;
           userData.totalFine += settingsData.fineAmountUnclosed;
-        } else if (att.remark === "Unopened") {
+        } else if (remark === "Unopened") {
           userData.totalUnopened++;
           userData.totalFine += settingsData.fineAmountUnopened;
         }
@@ -211,7 +216,6 @@ export default function ViewReportsPage() {
         sundays,
         totalUsers: reports.length,
         totalFine,
-        averageFinePerUser: reports.length > 0 ? totalFine / reports.length : 0,
         totalOpened,
         totalClosed,
         totalUnopened,
@@ -291,11 +295,14 @@ export default function ViewReportsPage() {
   );
 
   return (
-    <div className="space-y-4">
-      {/* Header and Actions */}
+    <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">View Reports</h2>
+        <div className="space-y-1">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <BarChart2 className="h-6 w-6 text-primary" />
+            View Reports
+          </h2>
           <p className="text-sm text-muted-foreground">
             View attendance reports and manage fines for users
           </p>
@@ -303,19 +310,19 @@ export default function ViewReportsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 rounded-md border bg-card p-4">
-        <div className="flex-1 min-w-[200px]">
+      <div className="flex flex-col sm:flex-row gap-3 rounded-md border bg-card p-4">
+        <div className="flex-1 min-w-0">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by name or email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="pl-9 w-full"
             />
           </div>
         </div>
-        <div className="min-w-[200px]">
+        <div className="w-full sm:w-auto">
           <DateRangeFilter
             startDate={startDate}
             endDate={endDate}
@@ -327,18 +334,20 @@ export default function ViewReportsPage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="text-sm text-muted-foreground">
-        Showing {filteredReports.length} of {userReports.length} users
-        {startDate && endDate && (
-          <span className="ml-2">
-            • {startDate.toLocaleDateString()} - {endDate.toLocaleDateString()}
-          </span>
-        )}
-      </div>
+      {/* Stats Info */}
+      {!loading && (
+        <div className="text-sm text-muted-foreground">
+          Showing {filteredReports.length} of {userReports.length} users
+          {startDate && endDate && (
+            <span className="ml-2">
+              • {startDate.toLocaleDateString()} - {endDate.toLocaleDateString()}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Stats Cards */}
-      <div className="grid gap-2 grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-10">
+      <div className="grid gap-2 grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-9">
         <Card className="rounded-md border border-border">
           <CardContent className="p-3 flex flex-col items-center gap-2">
             {loading ? (
@@ -409,30 +418,10 @@ export default function ViewReportsPage() {
             ) : (
               <>
                 <div className="flex h-10 w-full items-center justify-center rounded-md bg-secondary text-lg font-semibold text-secondary-foreground">
-                  Rs {stats.totalFine.toFixed(0)}
+                  {stats.totalFine.toFixed(0)}
                 </div>
                 <p className="text-[11px] text-muted-foreground text-center">
-                  Total Fine
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-md border border-border">
-          <CardContent className="p-3 flex flex-col items-center gap-2">
-            {loading ? (
-              <>
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-4 w-16" />
-              </>
-            ) : (
-              <>
-                <div className="flex h-10 w-full items-center justify-center rounded-md bg-secondary text-lg font-semibold text-secondary-foreground">
-                  Rs {stats.averageFinePerUser.toFixed(0)}
-                </div>
-                <p className="text-[11px] text-muted-foreground text-center">
-                  Avg Fine/User
+                  Total Fine (Rs)
                 </p>
               </>
             )}
@@ -541,11 +530,7 @@ export default function ViewReportsPage() {
       </div>
 
       {/* Users Table */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <p className="text-muted-foreground">Loading reports...</p>
-        </div>
-      ) : filteredReports.length === 0 ? (
+      {filteredReports.length === 0 && !loading ? (
         <div className="rounded-md border bg-card p-12 text-center">
           <p className="text-muted-foreground">
             {searchQuery
@@ -554,82 +539,121 @@ export default function ViewReportsPage() {
           </p>
         </div>
       ) : (
-        <>
-          <div className="rounded-md border">
+        <div className="rounded-md border overflow-hidden">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Opened</TableHead>
-                  <TableHead>Closed</TableHead>
-                  <TableHead>Unclosed</TableHead>
-                  <TableHead>Unopened</TableHead>
-                  <TableHead>Total Fine</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="min-w-[200px] sm:min-w-[250px]">Name</TableHead>
+                  <TableHead className="min-w-[80px]">Opened</TableHead>
+                  <TableHead className="min-w-[80px]">Closed</TableHead>
+                  <TableHead className="min-w-[90px]">Unclosed</TableHead>
+                  <TableHead className="min-w-[90px]">Unopened</TableHead>
+                  <TableHead className="min-w-[100px]">Total Fine</TableHead>
+                  <TableHead className="text-right min-w-[280px] sm:min-w-[320px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredReports.map((report) => (
-                  <TableRow key={report.userId}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <Avatar
-                          alt={report.userName}
-                          fallback={report.userName[0]}
-                          className="h-8 w-8"
-                        />
-                        <div>
-                          <p className="font-medium">{report.userName}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {report.userEmail}
-                          </p>
+                {loading ? (
+                  // Skeleton rows
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="min-w-[200px] sm:min-w-[250px]">
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-8 w-8 rounded-full" />
+                          <div className="space-y-1">
+                            <Skeleton className="h-4 w-24" />
+                            <Skeleton className="h-3 w-32" />
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{report.totalOpened}</TableCell>
-                    <TableCell>{report.totalClosed}</TableCell>
-                    <TableCell>{report.totalUnclosed}</TableCell>
-                    <TableCell>{report.totalUnopened}</TableCell>
-                    <TableCell className="font-semibold">
-                      Rs {report.totalFine.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleFineAction(report, "pay")}
-                          disabled={report.totalFine === 0}
-                          className="rounded-full"
-                        >
-                          Pay Fine
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleFineAction(report, "reduce")}
-                          disabled={report.totalFine === 0}
-                          className="rounded-full"
-                        >
-                          Reduce
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleFineAction(report, "waive")}
-                          disabled={report.totalFine === 0}
-                          className="rounded-full"
-                        >
-                          Waive
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell className="min-w-[80px]">
+                        <Skeleton className="h-4 w-8" />
+                      </TableCell>
+                      <TableCell className="min-w-[80px]">
+                        <Skeleton className="h-4 w-8" />
+                      </TableCell>
+                      <TableCell className="min-w-[90px]">
+                        <Skeleton className="h-4 w-8" />
+                      </TableCell>
+                      <TableCell className="min-w-[90px]">
+                        <Skeleton className="h-4 w-8" />
+                      </TableCell>
+                      <TableCell className="min-w-[100px]">
+                        <Skeleton className="h-4 w-16" />
+                      </TableCell>
+                      <TableCell className="text-right min-w-[280px] sm:min-w-[320px]">
+                        <div className="flex justify-end gap-2 flex-wrap">
+                          <Skeleton className="h-8 w-20 rounded-full" />
+                          <Skeleton className="h-8 w-20 rounded-full" />
+                          <Skeleton className="h-8 w-20 rounded-full" />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  filteredReports.map((report) => (
+                    <TableRow key={report.userId}>
+                      <TableCell className="font-medium min-w-[200px] sm:min-w-[250px]">
+                        <div className="flex items-center gap-2">
+                          <Avatar
+                            alt={report.userName}
+                            fallback={report.userName[0]}
+                            className="h-8 w-8 shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{report.userName}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {report.userEmail}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="min-w-[80px]">{report.totalOpened}</TableCell>
+                      <TableCell className="min-w-[80px]">{report.totalClosed}</TableCell>
+                      <TableCell className="min-w-[90px]">{report.totalUnclosed}</TableCell>
+                      <TableCell className="min-w-[90px]">{report.totalUnopened}</TableCell>
+                      <TableCell className="font-semibold min-w-[100px]">
+                        Rs {report.totalFine.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right min-w-[280px] sm:min-w-[320px]">
+                        <div className="flex justify-end gap-2 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleFineAction(report, "pay")}
+                            disabled={report.totalFine === 0}
+                            className="rounded-full whitespace-nowrap"
+                          >
+                            Pay Fine
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleFineAction(report, "reduce")}
+                            disabled={report.totalFine === 0}
+                            className="rounded-full whitespace-nowrap"
+                          >
+                            Reduce
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleFineAction(report, "waive")}
+                            disabled={report.totalFine === 0}
+                            className="rounded-full whitespace-nowrap"
+                          >
+                            Waive
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
-        </>
+        </div>
       )}
 
       {/* Fine Action Dialog */}

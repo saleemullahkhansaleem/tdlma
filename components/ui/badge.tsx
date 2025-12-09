@@ -13,7 +13,7 @@ export function Badge({ className, variant = "default", ...props }: BadgeProps) 
 
   const variants: Record<NonNullable<BadgeProps["variant"]>, string> = {
     default: "bg-primary text-primary-foreground border-transparent",
-    success: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    success: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-900",
     destructive: "bg-destructive/10 text-destructive border-destructive/30",
     outline: "border-border text-foreground bg-transparent",
     soft: "bg-muted text-foreground border-transparent",

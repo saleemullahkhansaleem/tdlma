@@ -14,6 +14,7 @@ import {
   ChevronRight,
   MessageSquare,
   UserCog,
+  User,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -45,18 +46,23 @@ const superAdminNavItems = [
 export function AdminSidebar({
   pathname,
   onNavigate,
+  disableCollapse = false,
 }: {
   pathname: string | null;
   onNavigate?: () => void;
+  disableCollapse?: boolean;
 }) {
   const { logout, user } = useAuth();
   const { isCollapsed, toggleCollapsed } = useSidebar();
+
+  // Force non-collapsed state in mobile
+  const effectiveCollapsed = disableCollapse ? false : isCollapsed;
 
   const isSuperAdmin = user?.role === "super_admin";
   const allNavItems = isSuperAdmin ? [...navItems, ...superAdminNavItems] : navItems;
 
   return (
-    <Sidebar>
+    <Sidebar className={disableCollapse ? "w-64" : undefined}>
       <SidebarHeader>
         <div className="flex w-full items-center gap-2">
           <Image
@@ -66,7 +72,7 @@ export function AdminSidebar({
             height={32}
             className="shrink-0"
           />
-          {!isCollapsed && (
+          {!effectiveCollapsed && (
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-primary leading-tight">
                 TD-LMA
@@ -90,10 +96,10 @@ export function AdminSidebar({
                   <SidebarMenuButton
                     isActive={active}
                     tooltip={item.label}
-                    className="w-full"
+                    className={disableCollapse ? "w-full justify-start px-3" : "w-full"}
                   >
                     <Icon className="size-4 shrink-0" />
-                    {!isCollapsed && <span>{item.label}</span>}
+                    {!effectiveCollapsed && <span>{item.label}</span>}
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
@@ -105,34 +111,63 @@ export function AdminSidebar({
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <Link href="/admin/settings" className="block">
-              <SidebarMenuAction tooltip="Settings">
+            <Link href="/admin/settings" onClick={onNavigate} className="block">
+              <SidebarMenuButton
+                isActive={pathname?.startsWith("/admin/settings")}
+                tooltip="Settings"
+                className={disableCollapse ? "w-full justify-start px-3" : "w-full"}
+              >
                 <Settings className="size-4 shrink-0" />
-                {!isCollapsed && <span>Settings</span>}
-              </SidebarMenuAction>
+                {!effectiveCollapsed && <span>Settings</span>}
+              </SidebarMenuButton>
             </Link>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuAction onClick={logout} tooltip="Logout">
-              <LogOut className="size-4 shrink-0" />
-              {!isCollapsed && <span>Logout</span>}
+            <Link href="/admin/profile" onClick={onNavigate} className="block">
+              <SidebarMenuButton
+                isActive={pathname?.startsWith("/admin/profile")}
+                tooltip="Profile"
+                className={disableCollapse ? "w-full justify-start px-3" : "w-full"}
+              >
+                <User className="size-4 shrink-0" />
+                {!effectiveCollapsed && <span>Profile</span>}
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuAction
+              onClick={logout}
+              tooltip="Logout"
+              className={disableCollapse
+                ? "text-destructive hover:bg-destructive/10 focus:text-destructive focus:bg-destructive/10 justify-start px-3"
+                : "text-destructive hover:bg-destructive/10 focus:text-destructive focus:bg-destructive/10"
+              }
+            >
+              <LogOut className="size-4 shrink-0 text-destructive" />
+              {!effectiveCollapsed && <span className="text-destructive">Logout</span>}
             </SidebarMenuAction>
           </SidebarMenuItem>
-          <SidebarMenuItem className="mt-2 pt-2 border-t">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleCollapsed}
-              className="w-full h-9"
-              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {isCollapsed ? (
-                <ChevronRight className="size-4" />
-              ) : (
-                <ChevronLeft className="size-4" />
-              )}
-            </Button>
-          </SidebarMenuItem>
+          {/* Hide collapse button in mobile view */}
+          {!disableCollapse && (
+            <SidebarMenuItem className="mt-2 pt-2 border-t">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleCollapsed}
+                className="w-full h-9 flex items-center text-muted-foreground"
+                title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="size-4" />
+                ) : (
+                  <>
+                    <ChevronLeft className="size-4" />
+                    {!isCollapsed && <span className="text-xs">Collapse sidebar</span>}
+                  </>
+                )}
+              </Button>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
