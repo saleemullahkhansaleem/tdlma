@@ -38,11 +38,11 @@ const navItems = [
   { href: "/admin/view-attendance", label: "View Attendance", icon: Users },
   { href: "/admin/view-reports", label: "View Reports", icon: BarChart2 },
   { href: "/admin/feedback", label: "Feedback Management", icon: MessageSquare },
-  { href: "/admin/audit-logs", label: "Audit Logs", icon: FileText },
 ];
 
 const superAdminNavItems = [
   { href: "/admin/users", label: "Users", icon: UserCog },
+  { href: "/admin/audit-logs", label: "Audit Logs", icon: FileText },
 ];
 
 export function AdminSidebar({

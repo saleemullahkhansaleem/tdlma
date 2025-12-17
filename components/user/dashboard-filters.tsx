@@ -13,12 +13,12 @@ export function DashboardFilters({
   onFilterChange,
 }: DashboardFiltersProps) {
   const filters: FilterType[] = [
+    "Last 30 Days",
+    "Last 10 Days",
     "This Week",
-    "10 Days",
-    "15 Days",
-    "20 Days",
-    "30 Days",
     "This Month",
+    "10 Days",
+    "30 Days",
   ];
 
   return (

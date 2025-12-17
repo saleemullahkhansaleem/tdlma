@@ -37,12 +37,20 @@ export function NotificationBell() {
             "Content-Type": "application/json",
           },
         });
-        if (!response.ok) throw new Error("Failed to fetch notifications");
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+          throw new Error(errorData.error || `Failed to fetch notifications: ${response.status}`);
+        }
+        
         const data = await response.json();
         setNotifications(data || []);
         setUnreadCount(data.filter((n: Notification) => !n.read).length);
       } catch (error) {
         console.error("Failed to load notifications:", error);
+        // Set empty notifications on error to prevent UI issues
+        setNotifications([]);
+        setUnreadCount(0);
       } finally {
         setLoading(false);
       }
@@ -180,7 +188,7 @@ export function NotificationBell() {
           )}
         </div>
         <div className="p-2 border-t">
-          <Link href="/user/notifications">
+          <Link href="/admin/notifications">
             <Button variant="ghost" className="w-full text-xs" onClick={() => setOpen(false)}>
               View all notifications
             </Button>

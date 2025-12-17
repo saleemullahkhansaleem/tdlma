@@ -3,8 +3,8 @@ import { DayOfWeek } from "@/lib/types/menu";
 export type FilterType =
   | "This Week"
   | "10 Days"
-  | "15 Days"
-  | "20 Days"
+  | "Last 10 Days"
+  | "Last 30 Days"
   | "30 Days"
   | "This Month";
 
@@ -30,14 +30,38 @@ export function getFilterDates(filter: FilterType): Date[] {
       }
       break;
     }
-    case "10 Days":
-    case "15 Days":
-    case "20 Days":
-    case "30 Days": {
-      const days = parseInt(filter.split(" ")[0]);
-      for (let i = 0; i < days; i++) {
+    case "10 Days": {
+      // Next 10 days (including today)
+      for (let i = 0; i < 10; i++) {
         const date = new Date(today);
         date.setDate(today.getDate() + i);
+        dates.push(date);
+      }
+      break;
+    }
+    case "Last 10 Days": {
+      // Last 10 days (including today)
+      for (let i = 9; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        dates.push(date);
+      }
+      break;
+    }
+    case "Last 30 Days": {
+      // Last 30 days (including today)
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
+        dates.push(date);
+      }
+      break;
+    }
+    case "30 Days": {
+      // Last 30 days (including today) - same as "Last 30 Days"
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - i);
         dates.push(date);
       }
       break;

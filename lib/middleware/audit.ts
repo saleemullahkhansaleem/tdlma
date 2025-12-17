@@ -1,5 +1,5 @@
 import { db, auditLogs } from "@/lib/db";
-import { AppUser } from "@/lib/types/user";
+import { AppUser } from "@/lib/auth-context";
 
 /**
  * Create an audit log entry for Admin/Super Admin actions

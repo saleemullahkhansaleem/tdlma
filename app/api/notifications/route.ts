@@ -7,7 +7,6 @@ import { eq, and, desc } from "drizzle-orm";
 export async function GET(request: NextRequest) {
   try {
     const user = requireAuth(request);
-    const { searchParams } = new URL(request.url);
 
     // Get user's notifications, ordered by most recent first
     const userNotifications = await db
@@ -22,8 +21,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     console.error("Error fetching notifications:", error);
+    
+    // Provide more details in development
+    const errorMessage = process.env.NODE_ENV === "development" 
+      ? error.message || "Internal server error"
+      : "Internal server error";
+    
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: errorMessage },
       { status: 500 }
     );
   }

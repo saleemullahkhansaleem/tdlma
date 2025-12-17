@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
               .where(eq(attendance.id, existing.id));
             markedOffCount++;
           } else {
-            skippedCount++;
+          skippedCount++;
           }
           continue;
         }
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
         if (shouldMarkOff) {
           markedOffCount++;
         } else {
-          createdCount++;
+        createdCount++;
         }
       }
     }

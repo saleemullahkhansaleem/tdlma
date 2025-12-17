@@ -186,13 +186,14 @@ export async function PATCH(request: NextRequest) {
         .where(eq(users.status, "Active"));
 
       // Send notification to each user
-      if (allUsers.length > 0) {
+      if (allUsers.length > 0 && body.monthlyExpensePerHead !== undefined) {
+        const expenseAmount = body.monthlyExpensePerHead;
         await db.insert(notifications).values(
           allUsers.map((user) => ({
             userId: user.id,
             type: "monthly_expense_updated",
             title: "Monthly Expense Updated",
-            message: `The monthly base expense per head has been updated to Rs ${body.monthlyExpensePerHead.toFixed(2)}. This will apply to the current month and future months.`,
+            message: `The monthly base expense per head has been updated to Rs ${expenseAmount.toFixed(2)}. This will apply to the current month and future months.`,
             read: false,
           }))
         );

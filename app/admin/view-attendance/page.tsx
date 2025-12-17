@@ -3,12 +3,13 @@
 import { useState, useEffect, useMemo, memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateFilter } from "@/components/admin/date-filter";
-import { getAttendance, getGuests } from "@/lib/api/client";
+import { getAttendance, getGuests, updateAttendance } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { AttendanceWithUser } from "@/lib/types/attendance";
 import { Guest } from "@/lib/types/guest";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Users, CheckCircle2, XCircle, AlertCircle, Inbox, Mail, UserPlus, DollarSign } from "lucide-react";
 import { calculateRemark } from "@/lib/utils";
 
@@ -17,6 +18,8 @@ interface UserItem {
   name: string;
   email: string;
   avatarUrl: string | null;
+  attendanceId?: string | null;
+  isOpen?: boolean;
 }
 
 const StatusColumn = memo(function StatusColumn({
@@ -25,12 +28,18 @@ const StatusColumn = memo(function StatusColumn({
   items,
   loading = false,
   icon: Icon,
+  onToggleOpenClose,
+  selectedDate,
+  togglingIds,
 }: {
   title: string;
   color: "green" | "red" | "orange";
   items: UserItem[];
   loading?: boolean;
   icon?: React.ElementType;
+  onToggleOpenClose?: (attendanceId: string, currentIsOpen: boolean, userId: string) => void;
+  selectedDate?: string;
+  togglingIds?: Set<string>;
 }) {
   const border =
     color === "green"
@@ -109,6 +118,21 @@ const StatusColumn = memo(function StatusColumn({
                     </span>
                   </div>
                 </div>
+                {onToggleOpenClose && user.attendanceId && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onToggleOpenClose(user.attendanceId!, user.isOpen ?? true, user.id)}
+                    disabled={togglingIds?.has(user.attendanceId)}
+                    className="h-7 px-2 text-xs shrink-0"
+                  >
+                    {togglingIds?.has(user.attendanceId) ? (
+                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    ) : (
+                      user.isOpen ? "Close" : "Open"
+                    )}
+                  </Button>
+                )}
               </div>
             ))}
           </div>
@@ -164,6 +188,7 @@ export default function ViewAttendancePage() {
   const [attendance, setAttendance] = useState<AttendanceWithUser[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loadingGuests, setLoadingGuests] = useState(true);
+  const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -226,6 +251,42 @@ export default function ViewAttendancePage() {
     };
   }, [user, selectedDate]);
 
+  const handleToggleOpenClose = async (attendanceId: string, currentIsOpen: boolean, userId: string) => {
+    if (!user) return;
+
+    setTogglingIds((prev) => new Set(prev).add(attendanceId));
+
+    try {
+      const newIsOpen = !currentIsOpen;
+
+      // Optimistically update local state
+      setAttendance((prev) =>
+        prev.map((a) =>
+          a.id === attendanceId
+            ? { ...a, isOpen: newIsOpen }
+            : a
+        )
+      );
+
+      // Update in the background
+      await updateAttendance(attendanceId, { isOpen: newIsOpen }, user);
+    } catch (error) {
+      console.error("Failed to toggle open/close:", error);
+      // Reload attendance on error
+      const data = await getAttendance(user, {
+        date: selectedDate,
+        mealType: "Lunch",
+      });
+      setAttendance(data);
+    } finally {
+      setTogglingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(attendanceId);
+        return next;
+      });
+    }
+  };
+
   // Optimized filtering with useMemo - only recalculates when attendance changes
   const filteredUsers = useMemo(() => {
     const allClearPresent: UserItem[] = [];
@@ -239,6 +300,8 @@ export default function ViewAttendancePage() {
         name: a.user.name,
         email: a.user.email,
         avatarUrl: a.user.avatarUrl,
+        attendanceId: a.id,
+        isOpen: a.isOpen ?? true,
       };
 
       // Calculate remark from status and isOpen (computed, not stored)
@@ -337,6 +400,9 @@ export default function ViewAttendancePage() {
                 items={filteredUsers.allClearPresent}
                 loading={loading}
                 icon={CheckCircle2}
+                onToggleOpenClose={handleToggleOpenClose}
+                selectedDate={selectedDate}
+                togglingIds={togglingIds}
               />
               <StatusColumn
                 title="All Clear (Absent)"
@@ -344,6 +410,9 @@ export default function ViewAttendancePage() {
                 items={filteredUsers.allClearAbsent}
                 loading={loading}
                 icon={XCircle}
+                onToggleOpenClose={handleToggleOpenClose}
+                selectedDate={selectedDate}
+                togglingIds={togglingIds}
               />
               <StatusColumn
                 title="Unclosed"
@@ -351,6 +420,9 @@ export default function ViewAttendancePage() {
                 items={filteredUsers.unclosed}
                 loading={loading}
                 icon={AlertCircle}
+                onToggleOpenClose={handleToggleOpenClose}
+                selectedDate={selectedDate}
+                togglingIds={togglingIds}
               />
               <StatusColumn
                 title="Unopened"
@@ -358,6 +430,9 @@ export default function ViewAttendancePage() {
                 items={filteredUsers.unopened}
                 loading={loading}
                 icon={Inbox}
+                onToggleOpenClose={handleToggleOpenClose}
+                selectedDate={selectedDate}
+                togglingIds={togglingIds}
               />
             </>
           )}

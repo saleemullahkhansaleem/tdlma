@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+/**
+ * Middleware for authentication and route protection
+ * 
+ * Note: Turbopack may show a deprecation warning about "middleware" file convention.
+ * This is a known Turbopack warning and can be safely ignored. The middleware.ts file
+ * is still the standard and correct approach in Next.js 16. The functionality works
+ * correctly despite the warning.
+ */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const authCookie = request.cookies.get("tdlma_auth_token");

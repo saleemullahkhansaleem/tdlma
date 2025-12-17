@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, auditLogs, users } from "@/lib/db";
-import { requireAdmin } from "@/lib/middleware/auth";
+import { requireSuperAdmin } from "@/lib/middleware/auth";
 import { eq, desc, and, gte, lte, sql, count } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   try {
-    const admin = requireAdmin(request);
+    const superAdmin = requireSuperAdmin(request);
     const { searchParams } = new URL(request.url);
 
     const startDate = searchParams.get("startDate");

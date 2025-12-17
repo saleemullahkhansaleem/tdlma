@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Bell, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Bell, CheckCircle2 } from "lucide-react";
 import { Notification } from "@/lib/types/notification";
 import { formatDistanceToNow } from "date-fns";
+import Link from "next/link";
 
 export default function NotificationsPage() {
   const { user } = useAuth();
@@ -103,91 +104,100 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Bell className="h-6 w-6 text-primary" />
-            Notifications
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            View all your notifications
-          </p>
-        </div>
-        {unreadCount > 0 && (
-          <Button variant="outline" size="sm" onClick={markAllAsRead}>
-            <CheckCircle2 className="h-4 w-4 mr-2" />
-            Mark all as read
-          </Button>
-        )}
-      </div>
-
-      <Card>
-        <CardContent className="p-6">
-          {loading ? (
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-20 w-full" />
-              ))}
-            </div>
-          ) : notifications.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Bell className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-              <p className="font-medium">No notifications</p>
-              <p className="text-sm mt-2">You're all caught up!</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`p-4 rounded-lg border transition-colors ${
-                    !notification.read
-                      ? "bg-primary/5 border-primary/20"
-                      : "bg-muted/30 border-border"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3 flex-1">
-                      {!notification.read && (
-                        <div className="h-2 w-2 rounded-full bg-primary mt-2 shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-semibold text-sm">{notification.title}</p>
-                          {!notification.read && (
-                            <Badge variant="secondary" className="text-xs">
-                              New
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {formatDistanceToNow(new Date(notification.createdAt), {
-                            addSuffix: true,
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                    {!notification.read && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => markAsRead(notification.id)}
-                        className="shrink-0"
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+    <div className="min-h-screen bg-muted px-4 py-6 md:px-8">
+      <div className="mx-auto max-w-4xl space-y-6">
+        {/* Back Link - Always visible */}
+          <Link href="/user/dashboard">
+            <Button variant="ghost" size="sm" className="mb-4 rounded-full">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Dashboard
+            </Button>
+          </Link>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <Bell className="h-6 w-6 text-primary" />
+              Notifications
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              View all your notifications
+            </p>
+          </div>
+          {unreadCount > 0 && (
+            <Button variant="outline" size="sm" onClick={markAllAsRead}>
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Mark all as read
+            </Button>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        <Card>
+          <CardContent className="p-6">
+            {loading ? (
+              <div className="space-y-4">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full" />
+                ))}
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Bell className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                <p className="font-medium">No notifications</p>
+                <p className="text-sm mt-2">You're all caught up!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={`p-4 rounded-lg border transition-colors ${
+                      !notification.read
+                        ? "bg-primary/5 border-primary/20"
+                        : "bg-muted/30 border-border"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3 flex-1">
+                        {!notification.read && (
+                          <div className="h-2 w-2 rounded-full bg-primary mt-2 shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-semibold text-sm">{notification.title}</p>
+                            {!notification.read && (
+                              <Badge variant="soft" className="text-xs">
+                                New
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {notification.message}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {formatDistanceToNow(new Date(notification.createdAt), {
+                              addSuffix: true,
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                      {!notification.read && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => markAsRead(notification.id)}
+                          className="shrink-0"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

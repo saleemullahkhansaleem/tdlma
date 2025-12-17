@@ -19,7 +19,7 @@ import Link from "next/link";
 import { MessageSquare, User, LogOut, FileText, DollarSign, Calendar } from "lucide-react";
 import { NotificationBell } from "@/components/user/notification-bell";
 import { TodayMenu } from "@/components/today-menu";
-import { getAllMenus, getAttendance, updateAttendance, createAttendance, getSettings, getOffDays, getMonthlyExpenses, MonthlyExpenses } from "@/lib/api/client";
+import { getAllMenus, getAttendance, updateAttendance, createAttendance, getSettings, getOffDays, getMonthlyExpenses, MonthlyExpenses, getProfile } from "@/lib/api/client";
 import { OffDay } from "@/lib/types/off-days";
 import { Menu, DayOfWeek, WeekType } from "@/lib/types/menu";
 import { AttendanceWithUser } from "@/lib/types/attendance";
@@ -99,10 +99,40 @@ export default function UserDashboard() {
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [monthlyExpenses, setMonthlyExpenses] = useState<MonthlyExpenses | null>(null);
   const [loadingExpenses, setLoadingExpenses] = useState(true);
+  const [userCreatedAt, setUserCreatedAt] = useState<Date | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<{ year: number; month: number }>(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() + 1 };
   });
+
+  // Load user profile to get creation date
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      if (!user) return;
+
+      try {
+        const profile = await getProfile(user);
+        const createdAt = new Date(profile.createdAt);
+        setUserCreatedAt(createdAt);
+        
+        // Update selectedMonth if it's before user creation
+        const createdYear = createdAt.getFullYear();
+        const createdMonth = createdAt.getMonth() + 1;
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth() + 1;
+        
+        // If current month is before user creation, set to user creation month
+        if (currentYear < createdYear || (currentYear === createdYear && currentMonth < createdMonth)) {
+          setSelectedMonth({ year: createdYear, month: createdMonth });
+        }
+      } catch (error) {
+        console.error("Failed to load user profile:", error);
+      }
+    };
+
+    loadUserProfile();
+  }, [user]);
 
   // Load settings
   useEffect(() => {
@@ -132,6 +162,19 @@ export default function UserDashboard() {
     const loadMonthlyExpenses = async () => {
       if (!user) return;
 
+      // Don't load expenses for months before user creation
+      if (userCreatedAt) {
+        const createdYear = userCreatedAt.getFullYear();
+        const createdMonth = userCreatedAt.getMonth() + 1;
+        
+        if (selectedMonth.year < createdYear || 
+            (selectedMonth.year === createdYear && selectedMonth.month < createdMonth)) {
+          setMonthlyExpenses(null);
+          setLoadingExpenses(false);
+          return;
+        }
+      }
+
       try {
         setLoadingExpenses(true);
         const expenses = await getMonthlyExpenses(user, selectedMonth.year, selectedMonth.month);
@@ -145,7 +188,7 @@ export default function UserDashboard() {
     };
 
     loadMonthlyExpenses();
-  }, [user, selectedMonth]);
+  }, [user, selectedMonth.year, selectedMonth.month, userCreatedAt]);
 
   useEffect(() => {
     const loadTimetable = async () => {
@@ -822,16 +865,6 @@ export default function UserDashboard() {
             </Card>
           </section>
 
-          {/* Filters & stats */}
-          <section className="space-y-4">
-            <DashboardFilters
-              selectedFilter={selectedFilter}
-              onFilterChange={setSelectedFilter}
-            />
-
-            <DashboardStats stats={stats} loading={loadingStats} />
-          </section>
-
           {/* Monthly Expenses */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">
@@ -848,17 +881,54 @@ export default function UserDashboard() {
                   }}
                   className="text-sm border rounded-md px-3 py-1.5 bg-background"
                 >
-                  {Array.from({ length: 12 }, (_, i) => {
-                    const date = new Date();
-                    date.setMonth(date.getMonth() - i);
-                    const year = date.getFullYear();
-                    const month = date.getMonth() + 1;
-                    return (
-                      <option key={`${year}-${month}`} value={`${year}-${String(month).padStart(2, "0")}`}>
-                        {date.toLocaleString("default", { month: "long", year: "numeric" })}
-                      </option>
-                    );
-                  })}
+                  {(() => {
+                    if (!userCreatedAt) {
+                      // Show loading state - return current month
+                      const now = new Date();
+                      return (
+                        <option value={`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`}>
+                          Loading...
+                        </option>
+                      );
+                    }
+
+                    const userCreatedDate = new Date(userCreatedAt);
+                    const userCreatedYear = userCreatedDate.getFullYear();
+                    const userCreatedMonth = userCreatedDate.getMonth() + 1;
+                    const now = new Date();
+                    const currentYear = now.getFullYear();
+                    const currentMonth = now.getMonth() + 1;
+
+                    // Generate months from user creation to current month (max 12 months)
+                    const months: React.ReactElement[] = [];
+                    let year = currentYear;
+                    let month = currentMonth;
+                    let count = 0;
+
+                    while (count < 12) {
+                      // Check if this month is before user creation
+                      if (year < userCreatedYear || (year === userCreatedYear && month < userCreatedMonth)) {
+                        break;
+                      }
+
+                      const date = new Date(year, month - 1, 1);
+                      months.push(
+                        <option key={`${year}-${month}`} value={`${year}-${String(month).padStart(2, "0")}`}>
+                          {date.toLocaleString("default", { month: "long", year: "numeric" })}
+                        </option>
+                      );
+
+                      count++;
+                      // Move to previous month
+                      month--;
+                      if (month < 1) {
+                        month = 12;
+                        year--;
+                      }
+                    }
+
+                    return months;
+                  })()}
                 </select>
               </div>
             </div>
@@ -872,29 +942,25 @@ export default function UserDashboard() {
                     <Skeleton className="h-6 w-2/3" />
                   </div>
                 ) : monthlyExpenses ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Monthly Base Amount</p>
-                        <p className="text-lg font-semibold">Rs {monthlyExpenses.monthlyExpense.toFixed(2)}</p>
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1.5">Base Amount</p>
+                        <p className="text-base font-semibold">Rs {monthlyExpenses.monthlyExpense.toFixed(2)}</p>
                       </div>
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Meal Expenses</p>
-                        <p className="text-lg font-semibold">Rs {monthlyExpenses.mealExpenses.toFixed(2)}</p>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1.5">Guest Expenses</p>
+                        <p className="text-base font-semibold">Rs {monthlyExpenses.guestExpenses.toFixed(2)}</p>
                       </div>
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Guest Expenses</p>
-                        <p className="text-lg font-semibold">Rs {monthlyExpenses.guestExpenses.toFixed(2)}</p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm text-muted-foreground">Fines</p>
-                        <p className="text-lg font-semibold text-destructive">Rs {monthlyExpenses.totalFines.toFixed(2)}</p>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1.5">Fines</p>
+                        <p className="text-base font-semibold text-destructive">Rs {monthlyExpenses.totalFines.toFixed(2)}</p>
                       </div>
                     </div>
                     <div className="pt-4 border-t">
                       <div className="flex items-center justify-between">
-                        <p className="text-base font-semibold">Total Monthly Expense</p>
-                        <p className="text-2xl font-bold text-primary">Rs {monthlyExpenses.totalMonthlyExpense.toFixed(2)}</p>
+                        <p className="text-sm font-medium text-muted-foreground">Total</p>
+                        <p className="text-xl font-semibold">Rs {monthlyExpenses.totalMonthlyExpense.toFixed(2)}</p>
                       </div>
                     </div>
                   </div>
@@ -906,6 +972,16 @@ export default function UserDashboard() {
                 )}
               </CardContent>
             </Card>
+          </section>
+
+          {/* Filters & stats */}
+          <section className="space-y-4">
+            <DashboardFilters
+              selectedFilter={selectedFilter}
+              onFilterChange={setSelectedFilter}
+            />
+
+            <DashboardStats stats={stats} loading={loadingStats} />
           </section>
 
           {/* Timetable */}

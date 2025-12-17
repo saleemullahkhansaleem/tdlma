@@ -332,7 +332,103 @@ export function AttendanceList({ attendance, onUpdate, onItemUpdate, selectedDat
     }
   };
 
-  const getStatusBadge = (status: "open" | "close") => {
+  const handleToggleOpenClose = async (
+    attendanceId: string,
+    currentIsOpen: boolean,
+    userId: string,
+    date: string,
+    mealType: string
+  ) => {
+    if (!currentUser) return;
+
+    const key = `${userId}-${date}-${mealType}`;
+    setUpdatingIds((prev) => new Set(prev).add(key));
+
+    try {
+      const currentItem = attendance.find((a) => a.id === attendanceId);
+      if (!currentItem) return;
+
+      const newIsOpen = !currentIsOpen;
+
+      // Optimistically update local state
+      if (onItemUpdate) {
+        const status = currentItem.status === "Present" || currentItem.status === "Absent" ? currentItem.status : null;
+        const calculatedRemark = calculateRemark(status, newIsOpen);
+        let calculatedFine = "0";
+        if (fineSettings) {
+          if (calculatedRemark === "Unclosed") {
+            calculatedFine = fineSettings.fineAmountUnclosed;
+          } else if (calculatedRemark === "Unopened") {
+            calculatedFine = fineSettings.fineAmountUnopened;
+          }
+        }
+
+        onItemUpdate({
+          ...currentItem,
+          isOpen: newIsOpen,
+          remark: calculatedRemark,
+          fineAmount: calculatedFine,
+          updatedAt: new Date(),
+        });
+      }
+
+      // Update in the background
+      updateAttendance(attendanceId, { isOpen: newIsOpen }, currentUser)
+        .then((response) => {
+          if (onItemUpdate && currentItem) {
+            onItemUpdate({
+              ...currentItem,
+              isOpen: response.isOpen ?? newIsOpen,
+              remark: response.remark,
+              fineAmount: response.fineAmount || "0",
+              updatedAt: response.updatedAt,
+            });
+          }
+        })
+        .catch((error) => {
+          console.error("Failed to toggle open/close:", error);
+          onUpdate();
+        });
+    } catch (error) {
+      console.error("Failed to toggle open/close:", error);
+      onUpdate();
+    } finally {
+      setUpdatingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
+  };
+
+  const getStatusBadge = (status: "open" | "close", attendanceId: string | null, userId: string, date: string, mealType: string) => {
+    const isAdmin = currentUser?.role === "admin" || currentUser?.role === "super_admin";
+    const key = `${userId}-${date}-${mealType}`;
+    const isUpdating = updatingIds.has(key);
+
+    if (isAdmin && attendanceId) {
+      return (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => handleToggleOpenClose(attendanceId, status === "open", userId, date, mealType)}
+          disabled={isUpdating}
+          className={cn(
+            "min-w-[72px] justify-center bg-opacity-20 cursor-pointer",
+            STATUS_COLORS[status]
+          )}
+        >
+          {isUpdating ? (
+            <span className="flex items-center gap-1">
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            </span>
+          ) : (
+            status === "open" ? "Open" : "Close"
+          )}
+        </Button>
+      );
+    }
+
     return (
       <Badge
         variant="outline"
@@ -498,7 +594,7 @@ export function AttendanceList({ attendance, onUpdate, onItemUpdate, selectedDat
                     </div>
                   </TableCell>
                   <TableCell className="min-w-[100px] sm:min-w-[120px]">
-                    {getStatusBadge(statusBadge)}
+                    {getStatusBadge(statusBadge, item.id || null, item.userId, item.date, item.mealType)}
                   </TableCell>
                   <TableCell className="min-w-[100px] sm:min-w-[120px]">
                     {getRemarkBadge(remark)}
