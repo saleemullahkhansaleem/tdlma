@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     const monthStartStr = monthStart.toISOString().split("T")[0];
     const monthEndStr = monthEnd.toISOString().split("T")[0];
 
-    // Get user data including monthlyExpense
+    // Get user data
     const [userData] = await db
       .select()
       .from(users)
@@ -41,8 +41,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Get settings for meal cost (we'll need to add this to settings)
+    // Get settings for monthly expense per head
     const [settings] = await db.select().from(settingsTable).limit(1);
+    if (!settings) {
+      return NextResponse.json({ error: "Settings not found" }, { status: 404 });
+    }
+    
+    // Use monthlyExpensePerHead from settings (applies to all users)
+    const monthlyExpense = parseFloat(settings.monthlyExpensePerHead || "0");
+    
     // For now, assume meal cost is 0 or we'll add it to settings later
     const mealCost = 0; // TODO: Add mealCost to settings
 
@@ -101,10 +108,8 @@ export async function GET(request: NextRequest) {
       0
     );
 
-    // Get monthly expense from user
-    const monthlyExpense = parseFloat(userData.monthlyExpense || "0");
-
     // Calculate total monthly expense
+    // monthlyExpense is already set from settings above
     const totalMonthlyExpense =
       mealExpenses + guestExpenses + totalFines + monthlyExpense;
 

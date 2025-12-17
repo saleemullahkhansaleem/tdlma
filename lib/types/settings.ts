@@ -4,6 +4,7 @@ export interface Settings {
   fineAmountUnclosed: number;
   fineAmountUnopened: number;
   guestMealAmount: number;
+  monthlyExpensePerHead: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -13,4 +14,5 @@ export interface UpdateSettingsDto {
   fineAmountUnclosed?: number;
   fineAmountUnopened?: number;
   guestMealAmount?: number;
+  monthlyExpensePerHead?: number;
 }

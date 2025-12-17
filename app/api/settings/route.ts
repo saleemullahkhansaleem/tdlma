@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, settings, guests } from "@/lib/db";
+import { db, settings, guests, users, notifications } from "@/lib/db";
 import { requireAdmin, requireAuth } from "@/lib/middleware/auth";
 import { UpdateSettingsDto } from "@/lib/types/settings";
 import { sql, eq, gte } from "drizzle-orm";
@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
           fineAmountUnclosed: "0",
           fineAmountUnopened: "0",
           guestMealAmount: "0",
+          monthlyExpensePerHead: "0",
         })
         .returning();
     }
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
       fineAmountUnclosed: parseFloat(settingsRow.fineAmountUnclosed || "0"),
       fineAmountUnopened: parseFloat(settingsRow.fineAmountUnopened || "0"),
       guestMealAmount: parseFloat(settingsRow.guestMealAmount || "0"),
+      monthlyExpensePerHead: parseFloat(settingsRow.monthlyExpensePerHead || "0"),
       createdAt: settingsRow.createdAt,
       updatedAt: settingsRow.updatedAt,
     });
@@ -98,6 +100,14 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    // Validate monthly expense per head
+    if (body.monthlyExpensePerHead !== undefined && body.monthlyExpensePerHead < 0) {
+      return NextResponse.json(
+        { error: "Monthly expense per head cannot be negative" },
+        { status: 400 }
+      );
+    }
+
     // Get or create settings
     let [existingSettings] = await db.select().from(settings).limit(1);
     
@@ -106,6 +116,12 @@ export async function PATCH(request: NextRequest) {
       body.guestMealAmount !== undefined && 
       existingSettings &&
       parseFloat(existingSettings.guestMealAmount || "0") !== body.guestMealAmount;
+    
+    // Track if monthlyExpensePerHead is changing
+    const monthlyExpensePerHeadChanged = 
+      body.monthlyExpensePerHead !== undefined && 
+      existingSettings &&
+      parseFloat(existingSettings.monthlyExpensePerHead || "0") !== body.monthlyExpensePerHead;
     
     // Get today's date for updating future guests
     const today = new Date().toISOString().split("T")[0];
@@ -126,6 +142,9 @@ export async function PATCH(request: NextRequest) {
     if (body.guestMealAmount !== undefined) {
       updateData.guestMealAmount = body.guestMealAmount.toString();
     }
+    if (body.monthlyExpensePerHead !== undefined) {
+      updateData.monthlyExpensePerHead = body.monthlyExpensePerHead.toString();
+    }
 
     let updatedSettings;
     if (existingSettings) {
@@ -142,6 +161,7 @@ export async function PATCH(request: NextRequest) {
           fineAmountUnclosed: (body.fineAmountUnclosed || 0).toString(),
           fineAmountUnopened: (body.fineAmountUnopened || 0).toString(),
           guestMealAmount: (body.guestMealAmount || 0).toString(),
+          monthlyExpensePerHead: (body.monthlyExpensePerHead || 0).toString(),
         })
         .returning();
     }
@@ -157,10 +177,33 @@ export async function PATCH(request: NextRequest) {
         .where(gte(guests.date, today));
     }
 
+    // If monthlyExpensePerHead changed, notify all users
+    if (monthlyExpensePerHeadChanged && body.monthlyExpensePerHead !== undefined) {
+      // Get all active users
+      const allUsers = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.status, "Active"));
+
+      // Send notification to each user
+      if (allUsers.length > 0) {
+        await db.insert(notifications).values(
+          allUsers.map((user) => ({
+            userId: user.id,
+            type: "monthly_expense_updated",
+            title: "Monthly Expense Updated",
+            message: `The monthly base expense per head has been updated to Rs ${body.monthlyExpensePerHead.toFixed(2)}. This will apply to the current month and future months.`,
+            read: false,
+          }))
+        );
+      }
+    }
+
     // Create audit log
     await auditLog(admin, "UPDATE_SETTINGS", "settings", updatedSettings.id, {
       updatedFields: Object.keys(updateData),
       guestMealAmountChanged,
+      monthlyExpensePerHeadChanged,
     });
 
     return NextResponse.json({
@@ -169,6 +212,7 @@ export async function PATCH(request: NextRequest) {
       fineAmountUnclosed: parseFloat(updatedSettings.fineAmountUnclosed || "0"),
       fineAmountUnopened: parseFloat(updatedSettings.fineAmountUnopened || "0"),
       guestMealAmount: parseFloat(updatedSettings.guestMealAmount || "0"),
+      monthlyExpensePerHead: parseFloat(updatedSettings.monthlyExpensePerHead || "0"),
       createdAt: updatedSettings.createdAt,
       updatedAt: updatedSettings.updatedAt,
     });

@@ -23,6 +23,7 @@ export default function SettingsPage() {
     fineAmountUnclosed: 0,
     fineAmountUnopened: 0,
     guestMealAmount: 0,
+    monthlyExpensePerHead: 0,
   });
 
   useEffect(() => {
@@ -44,6 +45,7 @@ export default function SettingsPage() {
         fineAmountUnclosed: data.fineAmountUnclosed,
         fineAmountUnopened: data.fineAmountUnopened,
         guestMealAmount: data.guestMealAmount || 0,
+        monthlyExpensePerHead: data.monthlyExpensePerHead || 0,
       });
     } catch (err: any) {
       setError(err.message || "Failed to load settings");
@@ -273,6 +275,48 @@ export default function SettingsPage() {
                   )}
                   <p className="text-xs text-muted-foreground">
                     This amount will be charged to the inviter user for each guest meal.
+                  </p>
+                </div>
+
+                <hr />
+
+                {/* Monthly Expense Per Head */}
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-primary" />
+                      Monthly Expense Per Head
+                    </label>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Set the monthly base expense that applies to all users. This will be added to each user's monthly expense automatically. Changes apply to the current month and future months only.
+                    </p>
+                  </div>
+                  {loading ? (
+                    <Skeleton className="h-11 w-full" />
+                  ) : (
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium text-sm">
+                        Rs
+                      </span>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.monthlyExpensePerHead}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            monthlyExpensePerHead: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        className="pl-10 h-11 text-base"
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    This amount will be automatically added to every user's monthly expense. All users will be notified when this amount changes.
                   </p>
                 </div>
 
