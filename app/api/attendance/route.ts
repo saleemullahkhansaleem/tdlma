@@ -10,6 +10,7 @@ import { requireAdmin, requireAuth } from "@/lib/middleware/auth";
 import { CreateAttendanceDto } from "@/lib/types/attendance";
 import { eq, and, sql, lte } from "drizzle-orm";
 import { calculateRemark } from "@/lib/utils";
+import { auditLog } from "@/lib/middleware/audit";
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,15 +31,24 @@ export async function GET(request: NextRequest) {
     const selectedDateObj = new Date(date);
     selectedDateObj.setHours(23, 59, 59, 999); // End of the selected day
 
-    // If admin, get all users. If regular user, only get their own data
+    // If admin, get all active users. If regular user, only get their own data (if active)
     const allUsers = isAdmin
       ? await db
           .select()
           .from(users)
           .where(
-            and(eq(users.role, "user"), lte(users.createdAt, selectedDateObj))
+            and(
+              eq(users.role, "user"),
+              eq(users.status, "Active"),
+              lte(users.createdAt, selectedDateObj)
+            )
           )
-      : await db.select().from(users).where(eq(users.id, authUser.id));
+      : await db
+          .select()
+          .from(users)
+          .where(
+            and(eq(users.id, authUser.id), eq(users.status, "Active"))
+          );
 
     // Get attendance for the date and meal type
     const attendanceRecords = await db
@@ -253,6 +263,15 @@ export async function POST(request: NextRequest) {
       ...newAttendance,
       remark: computedRemark,
     };
+
+    // Create audit log
+    await auditLog(admin, "CREATE_ATTENDANCE", "attendance", newAttendance.id, {
+      userId: body.userId,
+      date: body.date,
+      mealType: body.mealType,
+      status: body.status,
+      isOpen: isOpen,
+    });
 
     return NextResponse.json(response, { status: 201 });
   } catch (error: any) {

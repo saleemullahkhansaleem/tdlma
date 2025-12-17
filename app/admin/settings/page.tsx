@@ -22,6 +22,7 @@ export default function SettingsPage() {
     closeTime: "18:00",
     fineAmountUnclosed: 0,
     fineAmountUnopened: 0,
+    guestMealAmount: 0,
   });
 
   useEffect(() => {
@@ -42,6 +43,7 @@ export default function SettingsPage() {
         closeTime: data.closeTime,
         fineAmountUnclosed: data.fineAmountUnclosed,
         fineAmountUnopened: data.fineAmountUnopened,
+        guestMealAmount: data.guestMealAmount || 0,
       });
     } catch (err: any) {
       setError(err.message || "Failed to load settings");
@@ -230,6 +232,48 @@ export default function SettingsPage() {
                       </p>
                     </div>
                   </div>
+                </div>
+
+                <hr />
+
+                {/* Guest Meal Amount */}
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-primary" />
+                      Guest Meal Amount
+                    </label>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Set the amount charged per guest per meal. This will apply to all new guests from today onward.
+                    </p>
+                  </div>
+                  {loading ? (
+                    <Skeleton className="h-11 w-full" />
+                  ) : (
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium text-sm">
+                        Rs
+                      </span>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.guestMealAmount}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            guestMealAmount: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                        className="pl-10 h-11 text-base"
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    This amount will be charged to the inviter user for each guest meal.
+                  </p>
                 </div>
 
                 {/* Actions */}

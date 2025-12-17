@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "../theme-toggle";
 import { TodayMenu } from "@/components/today-menu";
+import { NotificationBell } from "@/components/admin/notification-bell";
 import { User, LogOut, Menu } from "lucide-react";
 import Link from "next/link";
 
@@ -47,6 +48,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         </div>
 
         <div className="flex items-center gap-3">
+          <NotificationBell />
           <ThemeToggle size="icon" variant="ghost" />
           <div className="text-right text-sm leading-tight hidden md:block">
             <p className="font-medium">{user?.name ?? "Admin"}</p>

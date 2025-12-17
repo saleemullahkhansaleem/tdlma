@@ -712,6 +712,48 @@ export async function getDashboardStats(
 
 // Profile Management Functions
 
+export interface MonthlyExpenses {
+  mealExpenses: number;
+  guestExpenses: number;
+  totalFines: number;
+  monthlyExpense: number;
+  totalMonthlyExpense: number;
+  month: {
+    start: string;
+    end: string;
+    year: number;
+    month: number;
+  };
+}
+
+export async function getMonthlyExpenses(
+  user: AppUser,
+  year?: number,
+  month?: number
+): Promise<MonthlyExpenses> {
+  const params = new URLSearchParams();
+  if (year) params.set("year", year.toString());
+  if (month) params.set("month", month.toString());
+
+  const response = await fetch(
+    `${API_BASE}/api/user/dashboard-stats?${params.toString()}`,
+    {
+      headers: getAuthHeaders(user),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to fetch monthly expenses" }));
+    throw new Error(
+      error.error || error.message || "Failed to fetch monthly expenses"
+    );
+  }
+
+  return response.json();
+}
+
 export async function getProfile(user: AppUser): Promise<User> {
   const response = await fetch(`${API_BASE}/api/user/profile`, {
     headers: getAuthHeaders(user),

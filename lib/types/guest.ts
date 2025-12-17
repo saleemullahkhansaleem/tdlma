@@ -6,6 +6,7 @@ export interface Guest {
   name: string;
   date: string;
   mealType: MealType;
+  amount: number;
   createdAt: Date;
   updatedAt: Date;
 }

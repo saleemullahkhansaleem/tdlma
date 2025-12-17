@@ -4,6 +4,7 @@ import { requireSuperAdmin } from "@/lib/middleware/auth";
 import { UpdateUserDto } from "@/lib/types/user";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { auditLog } from "@/lib/middleware/audit";
 
 export async function GET(
   request: NextRequest,
@@ -179,6 +180,9 @@ export async function PATCH(
     if (body.avatarUrl !== undefined) {
       updateData.avatarUrl = body.avatarUrl || null;
     }
+    if (body.monthlyExpense !== undefined) {
+      updateData.monthlyExpense = body.monthlyExpense.toString();
+    }
     if (body.password) {
       // Hash new password
       updateData.passwordHash = await bcrypt.hash(body.password, 10);
@@ -200,6 +204,11 @@ export async function PATCH(
 
     // Don't return password hash
     const { passwordHash, ...userWithoutPassword } = updatedUser;
+
+    // Create audit log
+    await auditLog(superAdmin, "UPDATE_USER", "user", userId, {
+      updatedFields: Object.keys(updateData),
+    });
 
     return NextResponse.json(userWithoutPassword);
   } catch (error: any) {
@@ -253,6 +262,12 @@ export async function DELETE(
     if (!existingUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+
+    // Create audit log before deletion
+    await auditLog(superAdmin, "DELETE_USER", "user", userId, {
+      email: existingUser.email,
+      name: existingUser.name,
+    });
 
     // Delete user
     await db.delete(users).where(eq(users.id, userId));

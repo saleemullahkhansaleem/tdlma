@@ -7,6 +7,7 @@ export interface CreateUserDto {
   designation?: string;
   userType: "employee" | "student";
   avatarUrl?: string;
+  monthlyExpense?: number;
 }
 
 export interface UpdateUserDto {
@@ -19,6 +20,7 @@ export interface UpdateUserDto {
   designation?: string;
   userType?: "employee" | "student";
   avatarUrl?: string;
+  monthlyExpense?: number;
 }
 
 export interface User {
@@ -30,6 +32,8 @@ export interface User {
   designation: string | null;
   userType: "employee" | "student" | null;
   avatarUrl: string | null;
+  monthlyExpense: number;
+  emailVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

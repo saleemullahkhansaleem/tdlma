@@ -4,6 +4,7 @@ import { requireSuperAdmin } from "@/lib/middleware/auth";
 import { CreateUserDto } from "@/lib/types/user";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { auditLog } from "@/lib/middleware/audit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -76,11 +77,19 @@ export async function POST(request: NextRequest) {
         designation: body.designation || null,
         userType: body.userType || null,
         avatarUrl: body.avatarUrl || null,
+        monthlyExpense: body.monthlyExpense ? body.monthlyExpense.toString() : "0",
       })
       .returning();
 
     // Don't return password hash
     const { passwordHash: _, ...userWithoutPassword } = newUser;
+
+    // Create audit log
+    await auditLog(superAdmin, "CREATE_USER", "user", newUser.id, {
+      email: newUser.email,
+      role: newUser.role,
+      status: newUser.status,
+    });
 
     return NextResponse.json(userWithoutPassword, { status: 201 });
   } catch (error: any) {

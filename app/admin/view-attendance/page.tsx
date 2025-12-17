@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useEffect, useMemo, memo } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateFilter } from "@/components/admin/date-filter";
-import { getAttendance } from "@/lib/api/client";
+import { getAttendance, getGuests } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { AttendanceWithUser } from "@/lib/types/attendance";
+import { Guest } from "@/lib/types/guest";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar } from "@/components/ui/avatar";
-import { Users, CheckCircle2, XCircle, AlertCircle, Inbox, Mail } from "lucide-react";
+import { Users, CheckCircle2, XCircle, AlertCircle, Inbox, Mail, UserPlus, DollarSign } from "lucide-react";
 import { calculateRemark } from "@/lib/utils";
 
 interface UserItem {
@@ -161,6 +162,8 @@ export default function ViewAttendancePage() {
   );
   const [loading, setLoading] = useState(true);
   const [attendance, setAttendance] = useState<AttendanceWithUser[]>([]);
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [loadingGuests, setLoadingGuests] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -190,7 +193,33 @@ export default function ViewAttendancePage() {
       }
     };
 
+    const loadGuests = async () => {
+      if (!user) return;
+
+      setLoadingGuests(true);
+      try {
+        const guestsData = await getGuests(user, {
+          date: selectedDate,
+          mealType: "Lunch",
+        });
+
+        if (!cancelled) {
+          setGuests(guestsData);
+        }
+      } catch (error) {
+        console.error("Failed to load guests:", error);
+        if (!cancelled) {
+          setGuests([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingGuests(false);
+        }
+      }
+    };
+
     loadAttendance();
+    loadGuests();
 
     return () => {
       cancelled = true;
@@ -334,6 +363,79 @@ export default function ViewAttendancePage() {
           )}
         </section>
       )}
+
+      {/* Guests List */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserPlus className="h-5 w-5 text-primary" />
+            Guests for {selectedDate}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingGuests ? (
+            <div className="space-y-2">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : guests.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <UserPlus className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+              <p>No guests for this date</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between mb-4 p-3 bg-muted rounded-lg">
+                <div className="flex items-center gap-2">
+                  <UserPlus className="h-4 w-4 text-primary" />
+                  <span className="font-semibold">
+                    Total Guests: {guests.length}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-green-600" />
+                  <span className="font-semibold text-green-600">
+                    Total Expense: {guests.reduce((sum, g) => sum + parseFloat(g.amount?.toString() || "0"), 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {guests.map((guest) => {
+                  // Find inviter from attendance data
+                  const inviter = attendance.find((a) => a.userId === guest.inviterId);
+                  return (
+                    <div
+                      key={guest.id}
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                    >
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <UserPlus className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-semibold text-sm">{guest.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Invited by: {inviter?.user.name || "Unknown"}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold text-sm text-green-600">
+                          {parseFloat(guest.amount?.toString() || "0").toFixed(2)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {guest.mealType}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

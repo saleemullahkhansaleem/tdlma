@@ -78,6 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: "Login failed" }));
+        // Handle inactive user error
+        if (error.error === "INACTIVE_USER") {
+          throw new Error(error.message || "You are inactive by admin. Please contact admin for more details.");
+        }
         throw new Error(error.error || "Invalid credentials");
       }
 

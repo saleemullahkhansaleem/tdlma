@@ -16,9 +16,10 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { MessageSquare, User, LogOut, FileText } from "lucide-react";
+import { MessageSquare, User, LogOut, FileText, DollarSign, Calendar } from "lucide-react";
+import { NotificationBell } from "@/components/user/notification-bell";
 import { TodayMenu } from "@/components/today-menu";
-import { getAllMenus, getAttendance, updateAttendance, createAttendance, getSettings, getOffDays } from "@/lib/api/client";
+import { getAllMenus, getAttendance, updateAttendance, createAttendance, getSettings, getOffDays, getMonthlyExpenses, MonthlyExpenses } from "@/lib/api/client";
 import { OffDay } from "@/lib/types/off-days";
 import { Menu, DayOfWeek, WeekType } from "@/lib/types/menu";
 import { AttendanceWithUser } from "@/lib/types/attendance";
@@ -96,6 +97,12 @@ export default function UserDashboard() {
   const [loadingTimetable, setLoadingTimetable] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingSettings, setLoadingSettings] = useState(true);
+  const [monthlyExpenses, setMonthlyExpenses] = useState<MonthlyExpenses | null>(null);
+  const [loadingExpenses, setLoadingExpenses] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState<{ year: number; month: number }>(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  });
 
   // Load settings
   useEffect(() => {
@@ -119,6 +126,26 @@ export default function UserDashboard() {
 
     loadSettingsData();
   }, [user]);
+
+  // Load monthly expenses
+  useEffect(() => {
+    const loadMonthlyExpenses = async () => {
+      if (!user) return;
+
+      try {
+        setLoadingExpenses(true);
+        const expenses = await getMonthlyExpenses(user, selectedMonth.year, selectedMonth.month);
+        setMonthlyExpenses(expenses);
+      } catch (error) {
+        console.error("Failed to load monthly expenses:", error);
+        setMonthlyExpenses(null);
+      } finally {
+        setLoadingExpenses(false);
+      }
+    };
+
+    loadMonthlyExpenses();
+  }, [user, selectedMonth]);
 
   useEffect(() => {
     const loadTimetable = async () => {
@@ -672,6 +699,7 @@ export default function UserDashboard() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <NotificationBell />
               <Link href="/user/feedback" className="hidden sm:block">
                 <Button variant="outline" size="sm" className="rounded-full">
                   <MessageSquare className="mr-2 h-4 w-4" />
@@ -802,6 +830,82 @@ export default function UserDashboard() {
             />
 
             <DashboardStats stats={stats} loading={loadingStats} />
+          </section>
+
+          {/* Monthly Expenses */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold sm:text-xl flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-primary" />
+                Monthly Expenses
+              </h2>
+              <div className="flex items-center gap-2">
+                <select
+                  value={`${selectedMonth.year}-${String(selectedMonth.month).padStart(2, "0")}`}
+                  onChange={(e) => {
+                    const [year, month] = e.target.value.split("-").map(Number);
+                    setSelectedMonth({ year, month });
+                  }}
+                  className="text-sm border rounded-md px-3 py-1.5 bg-background"
+                >
+                  {Array.from({ length: 12 }, (_, i) => {
+                    const date = new Date();
+                    date.setMonth(date.getMonth() - i);
+                    const year = date.getFullYear();
+                    const month = date.getMonth() + 1;
+                    return (
+                      <option key={`${year}-${month}`} value={`${year}-${String(month).padStart(2, "0")}`}>
+                        {date.toLocaleString("default", { month: "long", year: "numeric" })}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+
+            <Card>
+              <CardContent className="p-6">
+                {loadingExpenses ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-6 w-3/4" />
+                    <Skeleton className="h-6 w-2/3" />
+                  </div>
+                ) : monthlyExpenses ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Monthly Base Amount</p>
+                        <p className="text-lg font-semibold">Rs {monthlyExpenses.monthlyExpense.toFixed(2)}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Meal Expenses</p>
+                        <p className="text-lg font-semibold">Rs {monthlyExpenses.mealExpenses.toFixed(2)}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Guest Expenses</p>
+                        <p className="text-lg font-semibold">Rs {monthlyExpenses.guestExpenses.toFixed(2)}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-muted-foreground">Fines</p>
+                        <p className="text-lg font-semibold text-destructive">Rs {monthlyExpenses.totalFines.toFixed(2)}</p>
+                      </div>
+                    </div>
+                    <div className="pt-4 border-t">
+                      <div className="flex items-center justify-between">
+                        <p className="text-base font-semibold">Total Monthly Expense</p>
+                        <p className="text-2xl font-bold text-primary">Rs {monthlyExpenses.totalMonthlyExpense.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <DollarSign className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+                    <p>No expense data available for this month</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </section>
 
           {/* Timetable */}

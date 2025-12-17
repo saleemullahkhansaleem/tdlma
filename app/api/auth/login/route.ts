@@ -41,11 +41,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if user is inactive
+    if (user.status === "Inactive") {
+      return NextResponse.json(
+        { 
+          error: "INACTIVE_USER",
+          message: "You are inactive by admin. Please contact admin for more details."
+        },
+        { status: 403 }
+      );
+    }
+
+    // Check if email is verified (warn but don't block)
+    // We'll return emailVerified status so frontend can handle it
+    const emailVerified = user.emailVerified || false;
+
     // Return user without password hash
     const { passwordHash, ...userWithoutPassword } = user;
+    
+    // Add emailVerified to response
+    const responseUser = { ...userWithoutPassword, emailVerified };
 
     // Create response with user data
-    const response = NextResponse.json(userWithoutPassword);
+    const response = NextResponse.json(responseUser);
 
     // Set httpOnly cookie for server-side authentication
     // Cookie contains user role for middleware access

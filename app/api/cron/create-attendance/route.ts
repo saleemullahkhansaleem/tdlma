@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, attendance, users } from "@/lib/db";
+import { db, attendance, users, offDays } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
+import { isWeekend, isOffDay } from "@/lib/utils";
 
 // This endpoint should be called by Vercel Cron Jobs or an external cron service
 // Configure in vercel.json or use Vercel Cron Jobs dashboard
@@ -17,11 +18,19 @@ export async function GET(request: NextRequest) {
     // Get today's date in YYYY-MM-DD format
     const today = new Date().toISOString().split("T")[0];
 
-    // Get all users with role "user"
+    // Get all active users with role "user" (exclude inactive users)
     const allUsers = await db
       .select()
       .from(users)
-      .where(eq(users.role, "user"));
+      .where(and(eq(users.role, "user"), eq(users.status, "Active")));
+
+    // Get all off-days
+    const allOffDays = await db.select().from(offDays);
+    const offDayDates = allOffDays.map((od) => od.date);
+
+    // Check if today is a weekend or off-day
+    const todayIsWeekend = isWeekend(today);
+    const todayIsOffDay = isOffDay(today, offDayDates);
 
     // Meal types to create attendance for
     // For now, only create Lunch records
@@ -29,6 +38,7 @@ export async function GET(request: NextRequest) {
 
     let createdCount = 0;
     let skippedCount = 0;
+    let markedOffCount = 0;
 
     // Create attendance records for each user and meal type
     for (const user of allUsers) {
@@ -46,21 +56,44 @@ export async function GET(request: NextRequest) {
           )
           .limit(1);
 
+        // Determine if attendance should be marked OFF
+        // Mark OFF if: weekend, off-day, or user is inactive (but we already filtered inactive users)
+        const shouldMarkOff = todayIsWeekend || todayIsOffDay;
+
         if (existing) {
-          skippedCount++;
+          // If existing record and it's a holiday/weekend, update it to be OFF
+          if (shouldMarkOff && (existing.status !== "Absent" || existing.isOpen !== false)) {
+            await db
+              .update(attendance)
+              .set({
+                status: "Absent" as any,
+                isOpen: false,
+                updatedAt: new Date(),
+              })
+              .where(eq(attendance.id, existing.id));
+            markedOffCount++;
+          } else {
+            skippedCount++;
+          }
           continue;
         }
 
-        // Create attendance record with null status and isOpen = true (default)
+        // Create attendance record
+        // If should mark off, set status = "Absent" and isOpen = false
+        // Otherwise, set status = null and isOpen = true (default)
         await db.insert(attendance).values({
           userId: user.id,
           date: today,
           mealType: mealType as any,
-          status: undefined, // Use undefined for nullable enum in Drizzle
-          isOpen: true, // Default to open
+          status: shouldMarkOff ? ("Absent" as any) : undefined,
+          isOpen: !shouldMarkOff, // false if marking off, true otherwise
         });
 
-        createdCount++;
+        if (shouldMarkOff) {
+          markedOffCount++;
+        } else {
+          createdCount++;
+        }
       }
     }
 
@@ -68,8 +101,11 @@ export async function GET(request: NextRequest) {
       success: true,
       date: today,
       created: createdCount,
+      markedOff: markedOffCount,
       skipped: skippedCount,
       total: allUsers.length * mealTypes.length,
+      isWeekend: todayIsWeekend,
+      isOffDay: todayIsOffDay,
     });
   } catch (error: any) {
     console.error("Error creating daily attendance:", error);

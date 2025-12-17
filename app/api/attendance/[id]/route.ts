@@ -4,6 +4,7 @@ import { requireAdmin, requireAuth } from "@/lib/middleware/auth";
 import { UpdateAttendanceDto } from "@/lib/types/attendance";
 import { eq } from "drizzle-orm";
 import { calculateRemark } from "@/lib/utils";
+import { auditLog } from "@/lib/middleware/audit";
 
 export async function PATCH(
   request: NextRequest,
@@ -141,6 +142,15 @@ export async function PATCH(
       ...updatedAttendance,
       remark: computedRemark,
     };
+
+    // Create audit log if admin updated it
+    if (isAdmin && (body.status !== undefined || body.isOpen !== undefined)) {
+      await auditLog(user, "UPDATE_ATTENDANCE", "attendance", attendanceId, {
+        status: body.status,
+        isOpen: body.isOpen,
+        userId: existingAttendance.userId,
+      });
+    }
 
     return NextResponse.json(response);
   } catch (error: any) {

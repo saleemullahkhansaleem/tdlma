@@ -32,3 +32,24 @@ export function calculateRemark(
 
   return null;
 }
+
+/**
+ * Check if a date is a weekend (Saturday or Sunday)
+ * @param dateString - Date in YYYY-MM-DD format
+ * @returns true if the date is a weekend
+ */
+export function isWeekend(dateString: string): boolean {
+  const date = new Date(dateString);
+  const dayOfWeek = date.getDay();
+  return dayOfWeek === 0 || dayOfWeek === 6; // 0 = Sunday, 6 = Saturday
+}
+
+/**
+ * Check if a date is an off-day (holiday)
+ * @param dateString - Date in YYYY-MM-DD format
+ * @param offDays - Array of off-day dates
+ * @returns true if the date is an off-day
+ */
+export function isOffDay(dateString: string, offDays: string[]): boolean {
+  return offDays.includes(dateString);
+}

@@ -15,6 +15,7 @@ import {
   MessageSquare,
   UserCog,
   User,
+  FileText,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -37,6 +38,7 @@ const navItems = [
   { href: "/admin/view-attendance", label: "View Attendance", icon: Users },
   { href: "/admin/view-reports", label: "View Reports", icon: BarChart2 },
   { href: "/admin/feedback", label: "Feedback Management", icon: MessageSquare },
+  { href: "/admin/audit-logs", label: "Audit Logs", icon: FileText },
 ];
 
 const superAdminNavItems = [

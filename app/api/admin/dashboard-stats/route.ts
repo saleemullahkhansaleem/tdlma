@@ -34,11 +34,11 @@ export async function GET(request: NextRequest) {
     const fineAmountUnclosed = parseFloat(settings?.fineAmountUnclosed || "0");
     const fineAmountUnopened = parseFloat(settings?.fineAmountUnopened || "0");
 
-    // Get all users (only regular users, not admins)
+    // Get all active users (only regular users, not admins, and only active)
     const allUsers = await db
       .select()
       .from(users)
-      .where(eq(users.role, "user"));
+      .where(and(eq(users.role, "user"), eq(users.status, "Active")));
 
     // Count users by type
     const employeeCount = allUsers.filter(

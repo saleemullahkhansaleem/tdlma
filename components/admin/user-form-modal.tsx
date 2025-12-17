@@ -16,6 +16,7 @@ import { User, CreateUserDto, UpdateUserDto } from "@/lib/types/user";
 import { createUser, updateUser } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
+import { DollarSign } from "lucide-react";
 
 interface UserFormModalProps {
   user: User | null;
@@ -49,6 +50,7 @@ export function UserFormModal({
     status: "Active" as "Active" | "Inactive",
     designation: "",
     userType: "employee" as "employee" | "student",
+    monthlyExpense: 0,
   });
 
   const isEdit = !!user;
@@ -65,6 +67,7 @@ export function UserFormModal({
         status: user.status,
         designation: user.designation || "",
         userType: user.userType || "employee",
+        monthlyExpense: user.monthlyExpense || 0,
       });
     } else {
       setFormData({
@@ -77,6 +80,7 @@ export function UserFormModal({
         status: "Active",
         designation: "",
         userType: "employee",
+        monthlyExpense: 0,
       });
     }
     setError(null);
@@ -135,6 +139,10 @@ export function UserFormModal({
           designation: formData.designation || undefined,
           userType: formData.userType,
         };
+        // Only Super Admin can set monthly expense
+        if (currentUser.role === "super_admin") {
+          updateData.monthlyExpense = formData.monthlyExpense;
+        }
         if (formData.password) {
           updateData.password = formData.password;
           if (isUpdatingSelf) {
@@ -152,6 +160,10 @@ export function UserFormModal({
           designation: formData.designation || undefined,
           userType: formData.userType,
         };
+        // Only Super Admin can set monthly expense
+        if (currentUser.role === "super_admin") {
+          createData.monthlyExpense = formData.monthlyExpense;
+        }
         await createUser(createData, currentUser);
       }
 
@@ -365,6 +377,32 @@ export function UserFormModal({
               </div>
             </RadioGroup>
           </div>
+
+          {/* Monthly Expense - Super Admin only */}
+          {currentUser?.role === "super_admin" && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-primary" />
+                Monthly Expense (Rs)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={formData.monthlyExpense}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    monthlyExpense: parseFloat(e.target.value) || 0,
+                  })
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Base monthly expense amount for this user (in addition to meals, guests, and fines)
+              </p>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

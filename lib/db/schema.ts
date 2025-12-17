@@ -72,6 +72,8 @@ export const users = pgTable("users", {
   designation: varchar("designation", { length: 255 }),
   userType: userTypeEnum("user_type"),
   avatarUrl: varchar("avatar_url", { length: 512 }),
+  monthlyExpense: decimal("monthly_expense", { precision: 10, scale: 2 }).default("0"),
+  emailVerified: boolean("email_verified").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -127,6 +129,7 @@ export const guests = pgTable("guests", {
   name: varchar("name", { length: 255 }).notNull(),
   date: date("date").notNull(),
   mealType: mealTypeEnum("meal_type").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).default("0").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -142,6 +145,12 @@ export const settings = pgTable("settings", {
     .default("0")
     .notNull(),
   fineAmountUnopened: decimal("fine_amount_unopened", {
+    precision: 10,
+    scale: 2,
+  })
+    .default("0")
+    .notNull(),
+  guestMealAmount: decimal("guest_meal_amount", {
     precision: 10,
     scale: 2,
   })
@@ -178,6 +187,44 @@ export const offDays = pgTable("off_days", {
 
 // Password Reset Tokens Table
 export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Audit Logs Table
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .references(() => users.id)
+    .notNull(),
+  action: varchar("action", { length: 100 }).notNull(), // e.g., "CREATE_USER", "UPDATE_ATTENDANCE"
+  entityType: varchar("entity_type", { length: 50 }).notNull(), // e.g., "user", "attendance", "guest"
+  entityId: uuid("entity_id"),
+  details: json("details"), // Additional details about the action
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Notifications Table
+export const notifications = pgTable("notifications", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  type: varchar("type", { length: 50 }).notNull(), // e.g., "guest_added", "expense_updated"
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  read: boolean("read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Email Verification Tokens Table
+export const emailVerificationTokens = pgTable("email_verification_tokens", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id")
     .references(() => users.id, { onDelete: "cascade" })

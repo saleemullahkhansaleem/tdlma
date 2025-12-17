@@ -38,7 +38,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
   const transporter = createTransporter();
 
   const mailOptions = {
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    from: process.env.SMTP_FROM || "food@tensaidevs.com",
     to,
     subject,
     text: text || html.replace(/<[^>]*>/g, ""), // Strip HTML tags for text version
@@ -92,6 +92,48 @@ export async function sendPasswordResetEmail(
   await sendEmail({
     to: email,
     subject: "Password Reset Request",
+    html,
+  });
+}
+
+export async function sendVerificationEmail(
+  email: string,
+  verificationToken: string,
+  userName?: string
+): Promise<void> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const verificationUrl = `${appUrl}/verify-email?token=${verificationToken}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Email Verification</title>
+      </head>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background-color: #f8f9fa; padding: 30px; border-radius: 10px;">
+          <h2 style="color: #2563eb; margin-top: 0;">Verify Your Email Address</h2>
+          <p>Hello${userName ? ` ${userName}` : ""},</p>
+          <p>Thank you for signing up! Please verify your email address by clicking the button below:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${verificationUrl}" style="background-color: #2563eb; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Verify Email</a>
+          </div>
+          <p style="font-size: 14px; color: #666;">Or copy and paste this link into your browser:</p>
+          <p style="font-size: 12px; color: #999; word-break: break-all;">${verificationUrl}</p>
+          <p style="font-size: 14px; color: #666; margin-top: 30px;">This link will expire in 24 hours.</p>
+          <p style="font-size: 14px; color: #666;">If you didn't create an account, please ignore this email.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+          <p style="font-size: 12px; color: #999; text-align: center;">This is an automated message, please do not reply.</p>
+        </div>
+      </body>
+    </html>
+  `;
+
+  await sendEmail({
+    to: email,
+    subject: "Verify Your Email Address",
     html,
   });
 }
