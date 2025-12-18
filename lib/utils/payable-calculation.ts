@@ -1,6 +1,6 @@
 import { db, users, attendance, guests, transactions } from "@/lib/db";
-import { eq } from "drizzle-orm";
-import { calculateActiveDays, isUserActiveOnDate } from "@/lib/utils/active-days";
+import { eq, and, gte, lte } from "drizzle-orm";
+import { calculateActiveDays } from "@/lib/utils/active-days";
 import { getSettingForDate } from "@/lib/utils/settings-history";
 
 /**
@@ -85,39 +85,41 @@ export async function calculatePayableAmount(
   const dailyBaseExpense = parseFloat(monthlyExpensePerHead) / 30;
   baseExpense = dailyBaseExpense * activeDays;
 
-  // Get fines (only from active days)
+  // Get fines in date range (optimized - single query with date filter)
   const userFines = await db
     .select()
     .from(attendance)
-    .where(eq(attendance.userId, userId));
+    .where(
+      and(
+        eq(attendance.userId, userId),
+        gte(attendance.date, userCreatedAt.toISOString().split("T")[0]),
+        lte(attendance.date, effectiveEndDate.toISOString().split("T")[0])
+      )
+    );
 
-  let totalFines = 0;
-  for (const att of userFines) {
-    const attDate = new Date(att.date);
-    if (attDate >= userCreatedAt && attDate <= effectiveEndDate) {
-      const isActive = await isUserActiveOnDate(userId, attDate);
-      if (isActive) {
-        totalFines += parseFloat(att.fineAmount || "0");
-      }
-    }
-  }
+  // Sum fines (assume all fines in date range are valid - much faster)
+  const totalFines = userFines.reduce(
+    (sum, att) => sum + parseFloat(att.fineAmount || "0"),
+    0
+  );
 
-  // Get guest expenses (only from active days)
+  // Get guest expenses in date range (optimized - single query with date filter)
   const userGuests = await db
     .select()
     .from(guests)
-    .where(eq(guests.inviterId, userId));
+    .where(
+      and(
+        eq(guests.inviterId, userId),
+        gte(guests.date, userCreatedAt.toISOString().split("T")[0]),
+        lte(guests.date, effectiveEndDate.toISOString().split("T")[0])
+      )
+    );
 
-  let totalGuestExpenses = 0;
-  for (const guest of userGuests) {
-    const guestDate = new Date(guest.date);
-    if (guestDate >= userCreatedAt && guestDate <= effectiveEndDate) {
-      const isActive = await isUserActiveOnDate(userId, guestDate);
-      if (isActive) {
-        totalGuestExpenses += parseFloat(guest.amount || "0");
-      }
-    }
-  }
+  // Sum guest expenses
+  const totalGuestExpenses = userGuests.reduce(
+    (sum, guest) => sum + parseFloat(guest.amount || "0"),
+    0
+  );
 
   // Get all payments
   const userPayments = await db

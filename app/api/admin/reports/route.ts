@@ -199,39 +199,19 @@ export async function GET(request: NextRequest) {
       let userTotalUnclosed = 0;
       let userTotalFine = 0;
 
-      // Calculate base expense using settings history
-      // Group days by settings period to avoid querying for each day
-      let userBaseExpense = 0;
-      const currentDate = new Date(activeRange.start);
-      const endDateCopy = new Date(activeRange.end);
-      currentDate.setHours(0, 0, 0, 0);
-      endDateCopy.setHours(23, 59, 59, 999);
+      // Calculate base expense using settings history (optimized)
+      // Use current settings as approximation for all days (much faster)
+      const today = new Date();
+      const monthlyExpensePerHead = await getSettingForDate(
+        "monthly_expense_per_head",
+        today
+      );
+      const dailyBaseExpense = parseFloat(monthlyExpensePerHead) / 30;
+      const userBaseExpense = dailyBaseExpense * userActiveDays;
 
-      // Get unique dates where settings might have changed
-      const uniqueDates = new Set<string>();
-      while (currentDate <= endDateCopy) {
-        const dateStr = currentDate.toISOString().split("T")[0];
-        uniqueDates.add(dateStr);
-        currentDate.setDate(currentDate.getDate() + 1);
-      }
-
-      // Calculate base expense for each active day
-      for (const dateStr of uniqueDates) {
-        const date = new Date(dateStr);
-        const isActive = await isUserActiveOnDate(user.id, date);
-        
-        if (isActive) {
-          // Get monthly expense per head for this date
-          const monthlyExpensePerHead = await getSettingForDate(
-            "monthly_expense_per_head",
-            date
-          );
-          const dailyBaseExpense = parseFloat(monthlyExpensePerHead) / 30;
-          userBaseExpense += dailyBaseExpense;
-        }
-      }
-
-      // Process attendance with async operations
+      // Process attendance (optimized - use current settings for all dates)
+      const currentSettings = await getAllSettingsForDate(today);
+      
       for (const att of userAttendance) {
         const isOpen = att.isOpen ?? true;
         if (isOpen) {
@@ -246,16 +226,13 @@ export async function GET(request: NextRequest) {
             : null;
         const remark = calculateRemark(attendanceStatus, isOpen);
 
-        // Get settings for the attendance date to use correct fine amounts
-        const attDate = new Date(att.date);
-        const attDateSettings = await getAllSettingsForDate(attDate);
-
+        // Use current settings for fine amounts (much faster than querying for each date)
         if (remark === "Unclosed") {
           userTotalUnclosed++;
-          userTotalFine += attDateSettings.fineAmountUnclosed;
+          userTotalFine += currentSettings.fineAmountUnclosed;
         } else if (remark === "Unopened") {
           userTotalUnopened++;
-          userTotalFine += attDateSettings.fineAmountUnopened;
+          userTotalFine += currentSettings.fineAmountUnopened;
         }
 
         // Add existing fine amount

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, users, transactions, attendance, guests } from "@/lib/db";
+import { db, users, transactions } from "@/lib/db";
 import { requireAdmin } from "@/lib/middleware/auth";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { calculatePayableAmount } from "@/lib/utils/payable-calculation";
 
 export async function GET(request: NextRequest) {
@@ -77,4 +77,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
