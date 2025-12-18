@@ -16,18 +16,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar } from "@/components/ui/avatar";
 import { DateRangeFilter } from "@/components/admin/date-range-filter";
-import { Search, BarChart2, AlertCircle } from "lucide-react";
-import { getAttendance, updateAttendance, getSettings } from "@/lib/api/client";
-import { AttendanceWithUser } from "@/lib/types/attendance";
-import { calculateRemark } from "@/lib/utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Search, BarChart2, Download } from "lucide-react";
 
 interface UserReportData {
   userId: string;
@@ -39,7 +28,10 @@ interface UserReportData {
   totalUnopened: number;
   totalUnclosed: number;
   totalFine: number;
-  attendanceRecords: AttendanceWithUser[];
+  guestCount: number;
+  guestExpense: number;
+  baseExpense: number;
+  totalDues: number;
 }
 
 interface ReportsStats {
@@ -52,6 +44,10 @@ interface ReportsStats {
   totalClosed: number;
   totalUnopened: number;
   totalUnclosed: number;
+  totalGuests: number;
+  totalGuestExpenses: number;
+  totalBaseExpenses: number;
+  totalDues: number;
 }
 
 export default function ViewReportsPage() {
@@ -69,6 +65,10 @@ export default function ViewReportsPage() {
     totalClosed: 0,
     totalUnopened: 0,
     totalUnclosed: 0,
+    totalGuests: 0,
+    totalGuestExpenses: 0,
+    totalBaseExpenses: 0,
+    totalDues: 0,
   });
 
   // Initialize with current month
@@ -82,17 +82,6 @@ export default function ViewReportsPage() {
   const { start: defaultStart, end: defaultEnd } = getCurrentMonthRange();
   const [startDate, setStartDate] = useState<Date | null>(defaultStart);
   const [endDate, setEndDate] = useState<Date | null>(defaultEnd);
-  const [settings, setSettings] = useState({
-    fineAmountUnclosed: 0,
-    fineAmountUnopened: 0,
-  });
-
-  // Fine action dialog state
-  const [fineDialogOpen, setFineDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserReportData | null>(null);
-  const [fineAction, setFineAction] = useState<"pay" | "reduce" | "waive" | null>(null);
-  const [fineAmount, setFineAmount] = useState("");
-  const [processingFine, setProcessingFine] = useState(false);
 
   const getLocalDateString = (date: Date): string => {
     const year = date.getFullYear();
@@ -101,128 +90,48 @@ export default function ViewReportsPage() {
     return `${year}-${month}-${day}`;
   };
 
-  const getDayOfWeek = (date: Date): number => {
-    return date.getDay(); // 0 = Sunday, 1 = Monday, etc.
-  };
-
   const loadReports = async () => {
     if (!user || !startDate || !endDate) return;
 
     setLoading(true);
     try {
-      // Load settings first
-      const settingsData = await getSettings(user);
-      setSettings({
-        fineAmountUnclosed: settingsData.fineAmountUnclosed,
-        fineAmountUnopened: settingsData.fineAmountUnopened,
-      });
+      const startDateStr = getLocalDateString(startDate);
+      const endDateStr = getLocalDateString(endDate);
 
-      // Generate all dates in range
-      const dates: string[] = [];
-      const currentDate = new Date(startDate);
-      while (currentDate <= endDate) {
-        dates.push(getLocalDateString(currentDate));
-        currentDate.setDate(currentDate.getDate() + 1);
+      const response = await fetch(
+        `/api/admin/reports?startDate=${startDateStr}&endDate=${endDateStr}`,
+        {
+          headers: {
+            "x-user-id": user.id,
+            "x-user-email": user.email,
+            "x-user-name": user.name,
+            "x-user-role": user.role,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch reports");
       }
 
-      // Fetch attendance for all dates in parallel
-      const attendancePromises = dates.map((date) =>
-        getAttendance(user, { date, mealType: "Lunch" }).catch(() => [])
-      );
-      const attendanceResults = await Promise.all(attendancePromises);
-      const allAttendance = attendanceResults.flat();
-
-      // Group by user and calculate stats
-      const userMap = new Map<string, UserReportData>();
-
-      allAttendance.forEach((att) => {
-        if (!userMap.has(att.userId)) {
-          userMap.set(att.userId, {
-            userId: att.userId,
-            userName: att.user.name,
-            userEmail: att.user.email,
-            avatarUrl: att.user.avatarUrl,
-            totalOpened: 0,
-            totalClosed: 0,
-            totalUnopened: 0,
-            totalUnclosed: 0,
-            totalFine: 0,
-            attendanceRecords: [],
-          });
-        }
-
-        const userData = userMap.get(att.userId)!;
-        userData.attendanceRecords.push(att);
-
-        const isOpen = att.isOpen ?? true;
-        if (isOpen) {
-          userData.totalOpened++;
-        } else {
-          userData.totalClosed++;
-        }
-
-        // Calculate remark from status and isOpen (computed, not stored)
-        const attendanceStatus = att.status === "Present" || att.status === "Absent"
-          ? att.status
-          : null;
-        const remark = calculateRemark(attendanceStatus, isOpen);
-
-        if (remark === "Unclosed") {
-          userData.totalUnclosed++;
-          userData.totalFine += settingsData.fineAmountUnclosed;
-        } else if (remark === "Unopened") {
-          userData.totalUnopened++;
-          userData.totalFine += settingsData.fineAmountUnopened;
-        }
-
-        // Add existing fine amount from attendance record
-        const existingFine = parseFloat(att.fineAmount || "0");
-        userData.totalFine += existingFine;
+      const data = await response.json();
+      setUserReports(data.reports || []);
+      setStats(data.stats || {
+        totalDays: 0,
+        workDays: 0,
+        sundays: 0,
+        totalUsers: 0,
+        totalFine: 0,
+        totalOpened: 0,
+        totalClosed: 0,
+        totalUnopened: 0,
+        totalUnclosed: 0,
+        totalGuests: 0,
+        totalGuestExpenses: 0,
+        totalBaseExpenses: 0,
+        totalDues: 0,
       });
-
-      const reports = Array.from(userMap.values());
-
-      // Calculate overall stats
-      let totalDays = dates.length;
-      let workDays = 0;
-      let sundays = 0;
-      let totalFine = 0;
-      let totalOpened = 0;
-      let totalClosed = 0;
-      let totalUnopened = 0;
-      let totalUnclosed = 0;
-
-      dates.forEach((dateStr) => {
-        const date = new Date(dateStr);
-        const dayOfWeek = getDayOfWeek(date);
-        if (dayOfWeek === 0) {
-          sundays++;
-        } else {
-          workDays++;
-        }
-      });
-
-      reports.forEach((userData) => {
-        totalFine += userData.totalFine;
-        totalOpened += userData.totalOpened;
-        totalClosed += userData.totalClosed;
-        totalUnopened += userData.totalUnopened;
-        totalUnclosed += userData.totalUnclosed;
-      });
-
-      setStats({
-        totalDays,
-        workDays,
-        sundays,
-        totalUsers: reports.length,
-        totalFine,
-        totalOpened,
-        totalClosed,
-        totalUnopened,
-        totalUnclosed,
-      });
-
-      setUserReports(reports);
     } catch (error) {
       console.error("Failed to load reports:", error);
     } finally {
@@ -234,59 +143,54 @@ export default function ViewReportsPage() {
     loadReports();
   }, [user, startDate, endDate]);
 
-  const handleFineAction = (userData: UserReportData, action: "pay" | "reduce" | "waive") => {
-    setSelectedUser(userData);
-    setFineAction(action);
-    setFineAmount("");
-    setFineDialogOpen(true);
-  };
+  const exportToCSV = () => {
+    if (userReports.length === 0) return;
 
-  const processFineAction = async () => {
-    if (!selectedUser || !fineAction || !user) return;
+    const headers = [
+      "Name",
+      "Email",
+      "Opened",
+      "Closed",
+      "Unclosed",
+      "Unopened",
+      "Total Fine (Rs)",
+      "Guests",
+      "Guest Expense (Rs)",
+      "Base Expense (Rs)",
+      "Total Dues (Rs)",
+    ];
 
-    setProcessingFine(true);
-    try {
-      // For now, we'll update the fine amount in the attendance records
-      // In a real implementation, you might want to create a separate fine transactions table
-      const amount = parseFloat(fineAmount) || 0;
+    const rows = userReports.map((report) => [
+      report.userName,
+      report.userEmail,
+      report.totalOpened.toString(),
+      report.totalClosed.toString(),
+      report.totalUnclosed.toString(),
+      report.totalUnopened.toString(),
+      report.totalFine.toFixed(2),
+      report.guestCount.toString(),
+      report.guestExpense.toFixed(2),
+      report.baseExpense.toFixed(2),
+      report.totalDues.toFixed(2),
+    ]);
 
-      // Update all attendance records for this user in the date range
-      const recordsToUpdate = selectedUser.attendanceRecords.filter((att) => {
-        const recordFine = parseFloat(att.fineAmount || "0");
-        return recordFine > 0; // Only update records with existing fines
-      });
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
 
-      if (fineAction === "pay") {
-        // Mark as paid (reduce fine to 0)
-        for (const record of recordsToUpdate) {
-          await updateAttendance(record.id, { fineAmount: 0 }, user);
-        }
-      } else if (fineAction === "reduce") {
-        // Reduce fine by amount
-        for (const record of recordsToUpdate) {
-          const currentFine = parseFloat(record.fineAmount || "0");
-          const newFine = Math.max(0, currentFine - amount);
-          await updateAttendance(record.id, { fineAmount: newFine }, user);
-        }
-      } else if (fineAction === "waive") {
-        // Waive all fines (set to 0)
-        for (const record of recordsToUpdate) {
-          await updateAttendance(record.id, { fineAmount: 0 }, user);
-        }
-      }
-
-      // Reload reports
-      await loadReports();
-      setFineDialogOpen(false);
-      setSelectedUser(null);
-      setFineAction(null);
-      setFineAmount("");
-    } catch (error) {
-      console.error("Failed to process fine action:", error);
-      alert("Failed to process fine action. Please try again.");
-    } finally {
-      setProcessingFine(false);
-    }
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `reports_${getLocalDateString(startDate!)}_${getLocalDateString(endDate!)}.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const filteredReports = userReports.filter((report) =>
@@ -304,9 +208,13 @@ export default function ViewReportsPage() {
             View Reports
           </h2>
           <p className="text-sm text-muted-foreground">
-            View attendance reports and manage fines for users
+            View attendance reports and financial details for users
           </p>
         </div>
+        <Button onClick={exportToCSV} disabled={loading || userReports.length === 0}>
+          <Download className="h-4 w-4 mr-2" />
+          Export CSV
+        </Button>
       </div>
 
       {/* Filters */}
@@ -347,7 +255,7 @@ export default function ViewReportsPage() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid gap-2 grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-9">
+      <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
         <Card className="rounded-md border border-border">
           <CardContent className="p-3 flex flex-col items-center gap-2">
             {loading ? (
@@ -527,6 +435,86 @@ export default function ViewReportsPage() {
             )}
           </CardContent>
         </Card>
+
+        <Card className="rounded-md border border-border">
+          <CardContent className="p-3 flex flex-col items-center gap-2">
+            {loading ? (
+              <>
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-4 w-16" />
+              </>
+            ) : (
+              <>
+                <div className="flex h-10 w-full items-center justify-center rounded-md bg-secondary text-lg font-semibold text-secondary-foreground">
+                  {stats.totalDues.toFixed(0)}
+                </div>
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Total Dues (Rs)
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-md border border-border">
+          <CardContent className="p-3 flex flex-col items-center gap-2">
+            {loading ? (
+              <>
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-4 w-16" />
+              </>
+            ) : (
+              <>
+                <div className="flex h-10 w-full items-center justify-center rounded-md bg-secondary text-lg font-semibold text-secondary-foreground">
+                  {stats.totalGuests}
+                </div>
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Total Guests
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-md border border-border">
+          <CardContent className="p-3 flex flex-col items-center gap-2">
+            {loading ? (
+              <>
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-4 w-16" />
+              </>
+            ) : (
+              <>
+                <div className="flex h-10 w-full items-center justify-center rounded-md bg-secondary text-lg font-semibold text-secondary-foreground">
+                  {stats.totalGuestExpenses.toFixed(0)}
+                </div>
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Guest Expenses (Rs)
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-md border border-border">
+          <CardContent className="p-3 flex flex-col items-center gap-2">
+            {loading ? (
+              <>
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-4 w-16" />
+              </>
+            ) : (
+              <>
+                <div className="flex h-10 w-full items-center justify-center rounded-md bg-secondary text-lg font-semibold text-secondary-foreground">
+                  {stats.totalBaseExpenses.toFixed(0)}
+                </div>
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Base Expenses (Rs)
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Users Table */}
@@ -550,7 +538,10 @@ export default function ViewReportsPage() {
                   <TableHead className="min-w-[90px]">Unclosed</TableHead>
                   <TableHead className="min-w-[90px]">Unopened</TableHead>
                   <TableHead className="min-w-[100px]">Total Fine</TableHead>
-                  <TableHead className="text-right min-w-[280px] sm:min-w-[320px]">Actions</TableHead>
+                  <TableHead className="min-w-[80px]">Guests</TableHead>
+                  <TableHead className="min-w-[120px]">Guest Expense</TableHead>
+                  <TableHead className="min-w-[120px]">Base Expense</TableHead>
+                  <TableHead className="min-w-[120px]">Total Dues</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -582,12 +573,17 @@ export default function ViewReportsPage() {
                       <TableCell className="min-w-[100px]">
                         <Skeleton className="h-4 w-16" />
                       </TableCell>
-                      <TableCell className="text-right min-w-[280px] sm:min-w-[320px]">
-                        <div className="flex justify-end gap-2 flex-wrap">
-                          <Skeleton className="h-8 w-20 rounded-full" />
-                          <Skeleton className="h-8 w-20 rounded-full" />
-                          <Skeleton className="h-8 w-20 rounded-full" />
-                        </div>
+                      <TableCell className="min-w-[80px]">
+                        <Skeleton className="h-4 w-8" />
+                      </TableCell>
+                      <TableCell className="min-w-[120px]">
+                        <Skeleton className="h-4 w-16" />
+                      </TableCell>
+                      <TableCell className="min-w-[120px]">
+                        <Skeleton className="h-4 w-16" />
+                      </TableCell>
+                      <TableCell className="min-w-[120px]">
+                        <Skeleton className="h-4 w-16" />
                       </TableCell>
                     </TableRow>
                   ))
@@ -616,36 +612,15 @@ export default function ViewReportsPage() {
                       <TableCell className="font-semibold min-w-[100px]">
                         Rs {report.totalFine.toFixed(2)}
                       </TableCell>
-                      <TableCell className="text-right min-w-[280px] sm:min-w-[320px]">
-                        <div className="flex justify-end gap-2 flex-wrap">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleFineAction(report, "pay")}
-                            disabled={report.totalFine === 0}
-                            className="rounded-full whitespace-nowrap"
-                          >
-                            Pay Fine
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleFineAction(report, "reduce")}
-                            disabled={report.totalFine === 0}
-                            className="rounded-full whitespace-nowrap"
-                          >
-                            Reduce
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleFineAction(report, "waive")}
-                            disabled={report.totalFine === 0}
-                            className="rounded-full whitespace-nowrap"
-                          >
-                            Waive
-                          </Button>
-                        </div>
+                      <TableCell className="min-w-[80px]">{report.guestCount}</TableCell>
+                      <TableCell className="min-w-[120px]">
+                        Rs {report.guestExpense.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="min-w-[120px]">
+                        Rs {report.baseExpense.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="font-semibold min-w-[120px]">
+                        Rs {report.totalDues.toFixed(2)}
                       </TableCell>
                     </TableRow>
                   ))
@@ -656,63 +631,6 @@ export default function ViewReportsPage() {
         </div>
       )}
 
-      {/* Fine Action Dialog */}
-      <Dialog open={fineDialogOpen} onOpenChange={setFineDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {fineAction === "pay"
-                ? "Pay Fine"
-                : fineAction === "reduce"
-                  ? "Reduce Fine"
-                  : "Waive Fine"}
-            </DialogTitle>
-            <DialogDescription>
-              {fineAction === "pay" &&
-                `Mark fine as paid for ${selectedUser?.userName}. This will set all fines to 0.`}
-              {fineAction === "reduce" &&
-                `Reduce fine amount for ${selectedUser?.userName}. Current fine: Rs ${selectedUser?.totalFine.toFixed(2)}`}
-              {fineAction === "waive" &&
-                `Waive all fines for ${selectedUser?.userName}. This will set all fines to 0.`}
-            </DialogDescription>
-          </DialogHeader>
-          {fineAction === "reduce" && (
-            <div className="space-y-2">
-              <label htmlFor="amount" className="text-sm font-medium">
-                Amount to Reduce (Rs)
-              </label>
-              <Input
-                id="amount"
-                type="number"
-                value={fineAmount}
-                onChange={(e) => setFineAmount(e.target.value)}
-                placeholder="Enter amount"
-                min="0"
-                max={selectedUser?.totalFine}
-              />
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setFineDialogOpen(false);
-                setSelectedUser(null);
-                setFineAction(null);
-                setFineAmount("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={processFineAction}
-              disabled={processingFine || (fineAction === "reduce" && !fineAmount)}
-            >
-              {processingFine ? "Processing..." : "Confirm"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

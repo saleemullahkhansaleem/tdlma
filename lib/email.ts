@@ -3,15 +3,33 @@ import nodemailer from "nodemailer";
 // Create reusable transporter object using SMTP transport
 const createTransporter = () => {
   // Use environment variables for email configuration
-  // For Gmail, you can use an App Password: https://support.google.com/accounts/answer/185833
+  // Configured for Hostinger email by default
+  // For Hostinger: Use your full email address (e.g., food@tensaidevs.com) and email password
+  
+  const smtpHost = process.env.SMTP_HOST || "smtp.hostinger.com";
+  const smtpPort = parseInt(process.env.SMTP_PORT || "465");
+  const smtpSecure = process.env.SMTP_SECURE === "true" || smtpPort === 465;
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPassword = process.env.SMTP_PASSWORD;
+
+  if (!smtpUser || !smtpPassword) {
+    throw new Error(
+      "SMTP credentials not configured. Please set SMTP_USER and SMTP_PASSWORD environment variables."
+    );
+  }
+
   const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: parseInt(process.env.SMTP_PORT || "587"),
-    secure: process.env.SMTP_SECURE === "true", // true for 465, false for other ports
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpSecure, // true for 465, false for other ports
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASSWORD,
+      user: smtpUser,
+      pass: smtpPassword,
     },
+    // Add connection timeout
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
   });
 
   return transporter;
@@ -29,16 +47,50 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
 
   // Check if email is configured
   if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
-    console.error(
-      "Email configuration missing. SMTP_USER and SMTP_PASSWORD must be set."
-    );
-    throw new Error("Email service is not configured");
+    const errorMsg =
+      "Email configuration missing. SMTP_USER and SMTP_PASSWORD must be set in environment variables.";
+    console.error(errorMsg);
+    throw new Error(errorMsg);
   }
 
-  const transporter = createTransporter();
+  let transporter;
+  try {
+    transporter = createTransporter();
+    
+    // Verify connection before sending
+    await transporter.verify();
+    console.log("SMTP server connection verified");
+  } catch (verifyError: any) {
+    console.error("SMTP connection verification failed:", verifyError);
+    
+    // Provide helpful error messages
+    if (verifyError.code === "EAUTH") {
+      throw new Error(
+        "SMTP authentication failed. Please check your SMTP_USER and SMTP_PASSWORD. " +
+        "For Hostinger: Use your full email address (e.g., food@tensaidevs.com) as SMTP_USER " +
+        "and your email account password as SMTP_PASSWORD. " +
+        "Ensure the email account is active in your Hostinger control panel."
+      );
+    } else if (verifyError.code === "ECONNECTION" || verifyError.code === "ETIMEDOUT") {
+      throw new Error(
+        `Cannot connect to SMTP server (${process.env.SMTP_HOST || "smtp.hostinger.com"}). ` +
+        "Please check your SMTP_HOST and SMTP_PORT settings. " +
+        "For Hostinger, use smtp.hostinger.com (port 465 with SSL) or smtp.titan.email (for newer accounts)."
+      );
+    } else {
+      throw new Error(
+        `SMTP configuration error: ${verifyError.message || "Unknown error"}. ` +
+        "Please verify your SMTP settings in environment variables."
+      );
+    }
+  }
+
+  // Use SMTP_USER as the "from" address if SMTP_FROM is not set
+  // This ensures the "from" address matches the authenticated user
+  const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || "food@tensaidevs.com";
 
   const mailOptions = {
-    from: process.env.SMTP_FROM || "food@tensaidevs.com",
+    from: fromAddress,
     to,
     subject,
     text: text || html.replace(/<[^>]*>/g, ""), // Strip HTML tags for text version
@@ -48,9 +100,27 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
   try {
     const info = await transporter.sendMail(mailOptions);
     console.log("Email sent successfully:", info.messageId);
-  } catch (error) {
+    console.log("Email sent to:", to);
+  } catch (error: any) {
     console.error("Error sending email:", error);
-    throw new Error("Failed to send email");
+    
+    // Provide specific error messages
+    if (error.code === "EAUTH") {
+      throw new Error(
+        "SMTP authentication failed. Please check your credentials. " +
+        "For Hostinger: Ensure SMTP_USER is your full email address (e.g., food@tensaidevs.com) " +
+        "and SMTP_PASSWORD is your email account password."
+      );
+    } else if (error.response) {
+      throw new Error(
+        `SMTP server error: ${error.response}. Please check your SMTP configuration.`
+      );
+    } else {
+      throw new Error(
+        `Failed to send email: ${error.message || "Unknown error"}. ` +
+        "Please check your SMTP configuration."
+      );
+    }
   }
 }
 
@@ -83,7 +153,12 @@ export async function sendPasswordResetEmail(
           <p style="font-size: 14px; color: #666; margin-top: 30px;">This link will expire in 1 hour.</p>
           <p style="font-size: 14px; color: #666;">If you didn't request a password reset, please ignore this email.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-          <p style="font-size: 12px; color: #999; text-align: center;">This is an automated message, please do not reply.</p>
+          <p style="font-size: 12px; color: #999; text-align: center;">
+            This is an automated message from <strong>food.tensaidevs.com</strong>, please do not reply.
+          </p>
+          <p style="font-size: 11px; color: #bbb; text-align: center; margin-top: 10px;">
+            Domain: food.tensaidevs.com
+          </p>
         </div>
       </body>
     </html>
@@ -125,7 +200,12 @@ export async function sendVerificationEmail(
           <p style="font-size: 14px; color: #666; margin-top: 30px;">This link will expire in 24 hours.</p>
           <p style="font-size: 14px; color: #666;">If you didn't create an account, please ignore this email.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-          <p style="font-size: 12px; color: #999; text-align: center;">This is an automated message, please do not reply.</p>
+          <p style="font-size: 12px; color: #999; text-align: center;">
+            This is an automated message from <strong>food.tensaidevs.com</strong>, please do not reply.
+          </p>
+          <p style="font-size: 11px; color: #bbb; text-align: center; margin-top: 10px;">
+            Domain: food.tensaidevs.com
+          </p>
         </div>
       </body>
     </html>

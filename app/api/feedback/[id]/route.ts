@@ -3,6 +3,7 @@ import { db, feedback, users } from "@/lib/db";
 import { requireAuth, requireAdmin } from "@/lib/middleware/auth";
 import { UpdateFeedbackDto } from "@/lib/types/feedback";
 import { eq, and } from "drizzle-orm";
+import { sendNotification } from "@/lib/utils/notifications";
 
 export async function GET(
   request: NextRequest,
@@ -140,6 +141,29 @@ export async function PATCH(
         { error: "Failed to update feedback" },
         { status: 500 }
       );
+    }
+
+    // Send notification to feedback owner
+    const oldStatus = existingFeedback.status;
+    const newStatus = updatedFeedback.status;
+    const hasResponse = updatedFeedback.response && updatedFeedback.response.trim().length > 0;
+
+    if (hasResponse && !existingFeedback.response) {
+      await sendNotification(existingFeedback.userId, {
+        type: "feedback_responded",
+        title: "Feedback Responded",
+        message: `Your feedback "${existingFeedback.title}" has been responded to by admin.`,
+        sendEmail: true,
+      });
+    }
+
+    if (newStatus !== oldStatus) {
+      await sendNotification(existingFeedback.userId, {
+        type: "feedback_status_changed",
+        title: "Feedback Status Updated",
+        message: `Your feedback "${existingFeedback.title}" status has been changed from ${oldStatus} to ${newStatus}.`,
+        sendEmail: true,
+      });
     }
 
     return NextResponse.json(updatedFeedback);

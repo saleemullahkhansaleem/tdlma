@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, feedback } from "@/lib/db";
+import { db, feedback, users } from "@/lib/db";
 import { requireAuth } from "@/lib/middleware/auth";
 import { CreateFeedbackDto } from "@/lib/types/feedback";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, or } from "drizzle-orm";
+import { notifyAllAdmins } from "@/lib/utils/notifications";
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,6 +30,14 @@ export async function POST(request: NextRequest) {
         status: "Pending",
       })
       .returning();
+
+    // Notify all admins
+    await notifyAllAdmins({
+      type: "feedback_received",
+      title: "New Feedback Received",
+      message: `New ${body.type.toLowerCase()} from ${user.name}: "${body.title}"`,
+      sendEmail: true,
+    });
 
     return NextResponse.json(newFeedback, { status: 201 });
   } catch (error: any) {

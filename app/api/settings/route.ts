@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, settings, guests, users, notifications } from "@/lib/db";
+import { db, settings, guests, users, settingsHistory } from "@/lib/db";
 import { requireAdmin, requireAuth } from "@/lib/middleware/auth";
 import { UpdateSettingsDto } from "@/lib/types/settings";
 import { sql, eq, gte } from "drizzle-orm";
 import { auditLog } from "@/lib/middleware/audit";
+import { notifyAllUsers } from "@/lib/utils/notifications";
 
 export async function GET(request: NextRequest) {
   try {
@@ -108,6 +109,57 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    // Validate effective dates are provided for amount changes
+    if (body.fineAmountUnclosed !== undefined && !body.fineAmountUnclosedEffectiveDate) {
+      return NextResponse.json(
+        { error: "Effective date is required when changing fine amount for unclosed meals" },
+        { status: 400 }
+      );
+    }
+    if (body.fineAmountUnopened !== undefined && !body.fineAmountUnopenedEffectiveDate) {
+      return NextResponse.json(
+        { error: "Effective date is required when changing fine amount for unopened meals" },
+        { status: 400 }
+      );
+    }
+    if (body.guestMealAmount !== undefined && !body.guestMealAmountEffectiveDate) {
+      return NextResponse.json(
+        { error: "Effective date is required when changing guest meal amount" },
+        { status: 400 }
+      );
+    }
+    if (body.monthlyExpensePerHead !== undefined && !body.monthlyExpensePerHeadEffectiveDate) {
+      return NextResponse.json(
+        { error: "Effective date is required when changing monthly expense per head" },
+        { status: 400 }
+      );
+    }
+    if (body.closeTime !== undefined && !body.closeTimeEffectiveDate) {
+      return NextResponse.json(
+        { error: "Effective date is required when changing close time" },
+        { status: 400 }
+      );
+    }
+
+    // Validate effective date format (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const effectiveDates = [
+      body.fineAmountUnclosedEffectiveDate,
+      body.fineAmountUnopenedEffectiveDate,
+      body.guestMealAmountEffectiveDate,
+      body.monthlyExpensePerHeadEffectiveDate,
+      body.closeTimeEffectiveDate,
+    ].filter(Boolean);
+
+    for (const date of effectiveDates) {
+      if (date && !dateRegex.test(date)) {
+        return NextResponse.json(
+          { error: "Effective date must be in YYYY-MM-DD format" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Get or create settings
     let [existingSettings] = await db.select().from(settings).limit(1);
     
@@ -166,38 +218,115 @@ export async function PATCH(request: NextRequest) {
         .returning();
     }
 
-    // If guestMealAmount changed, update future guests only (from today onward)
-    if (guestMealAmountChanged && body.guestMealAmount !== undefined) {
+    // Create settings history entries for changed settings
+    const historyEntries: Array<{
+      settingType: string;
+      value: string;
+      effectiveDate: string;
+    }> = [];
+
+    if (body.fineAmountUnclosed !== undefined && body.fineAmountUnclosedEffectiveDate) {
+      historyEntries.push({
+        settingType: "fine_amount_unclosed",
+        value: body.fineAmountUnclosed.toString(),
+        effectiveDate: body.fineAmountUnclosedEffectiveDate,
+      });
+    }
+    if (body.fineAmountUnopened !== undefined && body.fineAmountUnopenedEffectiveDate) {
+      historyEntries.push({
+        settingType: "fine_amount_unopened",
+        value: body.fineAmountUnopened.toString(),
+        effectiveDate: body.fineAmountUnopenedEffectiveDate,
+      });
+    }
+    if (body.guestMealAmount !== undefined && body.guestMealAmountEffectiveDate) {
+      historyEntries.push({
+        settingType: "guest_meal_amount",
+        value: body.guestMealAmount.toString(),
+        effectiveDate: body.guestMealAmountEffectiveDate,
+      });
+    }
+    if (body.monthlyExpensePerHead !== undefined && body.monthlyExpensePerHeadEffectiveDate) {
+      historyEntries.push({
+        settingType: "monthly_expense_per_head",
+        value: body.monthlyExpensePerHead.toString(),
+        effectiveDate: body.monthlyExpensePerHeadEffectiveDate,
+      });
+    }
+    if (body.closeTime !== undefined && body.closeTimeEffectiveDate) {
+      historyEntries.push({
+        settingType: "close_time",
+        value: body.closeTime,
+        effectiveDate: body.closeTimeEffectiveDate,
+      });
+    }
+
+    // Insert settings history entries
+    if (historyEntries.length > 0) {
+      await db.insert(settingsHistory).values(
+        historyEntries.map((entry) => ({
+          settingType: entry.settingType,
+          value: entry.value,
+          effectiveDate: entry.effectiveDate,
+          createdBy: admin.id,
+        }))
+      );
+    }
+
+    // If guestMealAmount changed, update future guests only (from effective date onward)
+    if (guestMealAmountChanged && body.guestMealAmount !== undefined && body.guestMealAmountEffectiveDate) {
       await db
         .update(guests)
         .set({ 
           amount: body.guestMealAmount.toString(),
           updatedAt: new Date()
         })
-        .where(gte(guests.date, today));
+        .where(gte(guests.date, body.guestMealAmountEffectiveDate));
     }
 
-    // If monthlyExpensePerHead changed, notify all users
-    if (monthlyExpensePerHeadChanged && body.monthlyExpensePerHead !== undefined) {
-      // Get all active users
-      const allUsers = await db
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.status, "Active"));
-
-      // Send notification to each user
-      if (allUsers.length > 0 && body.monthlyExpensePerHead !== undefined) {
-        const expenseAmount = body.monthlyExpensePerHead;
-        await db.insert(notifications).values(
-          allUsers.map((user) => ({
-            userId: user.id,
-            type: "monthly_expense_updated",
-            title: "Monthly Expense Updated",
-            message: `The monthly base expense per head has been updated to Rs ${expenseAmount.toFixed(2)}. This will apply to the current month and future months.`,
-            read: false,
-          }))
-        );
+    // Notify users about settings changes
+    const changes: string[] = [];
+    if (body.fineAmountUnclosed !== undefined && existingSettings) {
+      const oldValue = parseFloat(existingSettings.fineAmountUnclosed || "0");
+      const newValue = body.fineAmountUnclosed;
+      if (oldValue !== newValue) {
+        changes.push(`Fine for unclosed meals: Rs ${oldValue.toFixed(2)} → Rs ${newValue.toFixed(2)}`);
       }
+    }
+    if (body.fineAmountUnopened !== undefined && existingSettings) {
+      const oldValue = parseFloat(existingSettings.fineAmountUnopened || "0");
+      const newValue = body.fineAmountUnopened;
+      if (oldValue !== newValue) {
+        changes.push(`Fine for unopened meals: Rs ${oldValue.toFixed(2)} → Rs ${newValue.toFixed(2)}`);
+      }
+    }
+    if (body.guestMealAmount !== undefined && existingSettings) {
+      const oldValue = parseFloat(existingSettings.guestMealAmount || "0");
+      const newValue = body.guestMealAmount;
+      if (oldValue !== newValue) {
+        changes.push(`Guest meal amount: Rs ${oldValue.toFixed(2)} → Rs ${newValue.toFixed(2)}`);
+      }
+    }
+    if (monthlyExpensePerHeadChanged && body.monthlyExpensePerHead !== undefined) {
+      const oldValue = parseFloat(existingSettings.monthlyExpensePerHead || "0");
+      const newValue = body.monthlyExpensePerHead;
+      changes.push(`Monthly base expense: Rs ${oldValue.toFixed(2)} → Rs ${newValue.toFixed(2)}`);
+    }
+    if (body.closeTime !== undefined && existingSettings) {
+      const oldValue = existingSettings.closeTime;
+      const newValue = body.closeTime;
+      if (oldValue !== newValue) {
+        changes.push(`Meal close time: ${oldValue} → ${newValue}`);
+      }
+    }
+
+    if (changes.length > 0) {
+      await notifyAllUsers({
+        type: "settings_updated",
+        title: "Settings Updated",
+        message: `The following settings have been updated:\n${changes.join("\n")}`,
+        sendEmail: true,
+      });
     }
 
     // Create audit log

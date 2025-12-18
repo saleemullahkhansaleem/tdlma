@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, users } from "@/lib/db";
+import { db, users, userStatusHistory } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/middleware/auth";
 import { UpdateUserDto } from "@/lib/types/user";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { auditLog } from "@/lib/middleware/audit";
+import { sendNotification } from "@/lib/utils/notifications";
 
 export async function GET(
   request: NextRequest,
@@ -180,12 +181,19 @@ export async function PATCH(
     if (body.avatarUrl !== undefined) {
       updateData.avatarUrl = body.avatarUrl || null;
     }
-    if (body.monthlyExpense !== undefined) {
-      updateData.monthlyExpense = body.monthlyExpense.toString();
-    }
     if (body.password) {
       // Hash new password
       updateData.passwordHash = await bcrypt.hash(body.password, 10);
+    }
+
+    // Track status change in user_status_history
+    if (body.status !== undefined && body.status !== existingUser.status) {
+      await db.insert(userStatusHistory).values({
+        userId: userId,
+        status: body.status,
+        changedAt: new Date(),
+        changedBy: superAdmin.id,
+      });
     }
 
     // Update user
@@ -200,6 +208,16 @@ export async function PATCH(
         { error: "Failed to update user" },
         { status: 500 }
       );
+    }
+
+    // Notify user if password was changed by admin
+    if (body.password && !isUpdatingSelf) {
+      await sendNotification(userId, {
+        type: "password_changed_by_admin",
+        title: "Password Changed by Admin",
+        message: "Your password has been changed by an administrator. Please use your new password to login.",
+        sendEmail: true,
+      });
     }
 
     // Don't return password hash

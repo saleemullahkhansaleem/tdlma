@@ -3,6 +3,7 @@ import { db, menus } from "@/lib/db";
 import { requireAdmin } from "@/lib/middleware/auth";
 import { UpdateMenuDto } from "@/lib/types/menu";
 import { eq } from "drizzle-orm";
+import { notifyAllUsers } from "@/lib/utils/notifications";
 
 export async function GET(
   request: NextRequest,
@@ -88,6 +89,14 @@ export async function PATCH(
         { status: 500 }
       );
     }
+
+    // Notify all users
+    await notifyAllUsers({
+      type: "menu_updated",
+      title: "Menu Updated",
+      message: `Menu for ${existingMenu.dayOfWeek} (${existingMenu.weekType} week) has been updated.`,
+      sendEmail: true,
+    });
 
     return NextResponse.json(updatedMenu);
   } catch (error: any) {

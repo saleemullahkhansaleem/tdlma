@@ -3,6 +3,7 @@ import { db, users } from "@/lib/db";
 import { requireAuth } from "@/lib/middleware/auth";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { sendNotification } from "@/lib/utils/notifications";
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,6 +56,14 @@ export async function POST(request: NextRequest) {
       .update(users)
       .set({ passwordHash, updatedAt: new Date() })
       .where(eq(users.id, user.id));
+
+    // Notify user
+    await sendNotification(user.id, {
+      type: "password_changed",
+      title: "Password Changed",
+      message: "Your password has been changed successfully. If you didn't make this change, please contact admin immediately.",
+      sendEmail: true,
+    });
 
     return NextResponse.json({
       message: "Password has been changed successfully",

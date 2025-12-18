@@ -60,6 +60,11 @@ export const feedbackStatusEnum = pgEnum("feedback_status", [
   "Resolved",
 ]);
 export const userTypeEnum = pgEnum("user_type", ["employee", "student"]);
+export const transactionTypeEnum = pgEnum("transaction_type", [
+  "paid",
+  "reduced",
+  "waived",
+]);
 
 // Users Table
 export const users = pgTable("users", {
@@ -72,7 +77,7 @@ export const users = pgTable("users", {
   designation: varchar("designation", { length: 255 }),
   userType: userTypeEnum("user_type"),
   avatarUrl: varchar("avatar_url", { length: 512 }),
-  monthlyExpense: decimal("monthly_expense", { precision: 10, scale: 2 }).default("0"),
+  totalDues: decimal("total_dues", { precision: 10, scale: 2 }).default("0").notNull(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -238,5 +243,48 @@ export const emailVerificationTokens = pgTable("email_verification_tokens", {
   token: varchar("token", { length: 255 }).notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
   used: boolean("used").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Transactions Table
+export const transactions = pgTable("transactions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  type: transactionTypeEnum("type").notNull(),
+  description: text("description"),
+  createdBy: uuid("created_by")
+    .references(() => users.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Settings History Table
+export const settingsHistory = pgTable("settings_history", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  settingType: varchar("setting_type", { length: 50 }).notNull(), // "fine_amount_unclosed", "fine_amount_unopened", "guest_meal_amount", "monthly_expense_per_head", "close_time"
+  value: text("value").notNull(),
+  effectiveDate: date("effective_date").notNull(),
+  createdBy: uuid("created_by")
+    .references(() => users.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// User Status History Table
+export const userStatusHistory = pgTable("user_status_history", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  status: userStatusEnum("status").notNull(),
+  changedAt: timestamp("changed_at").defaultNow().notNull(),
+  changedBy: uuid("changed_by")
+    .references(() => users.id)
+    .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

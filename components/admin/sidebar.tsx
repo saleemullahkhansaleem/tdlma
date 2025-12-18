@@ -16,6 +16,8 @@ import {
   UserCog,
   User,
   FileText,
+  CreditCard,
+  Send,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -37,7 +39,9 @@ const navItems = [
   { href: "/admin/mark-attendance", label: "Mark Attendance", icon: CheckSquare },
   { href: "/admin/view-attendance", label: "View Attendance", icon: Users },
   { href: "/admin/view-reports", label: "View Reports", icon: BarChart2 },
+  { href: "/admin/payments", label: "Payments", icon: CreditCard },
   { href: "/admin/feedback", label: "Feedback Management", icon: MessageSquare },
+  { href: "/admin/notifications", label: "Send Notifications", icon: Send },
 ];
 
 const superAdminNavItems = [

@@ -788,3 +788,180 @@ export async function updateProfile(
 
   return response.json();
 }
+
+// Payment Management Functions
+
+export interface UserWithDues {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl: string | null;
+  totalDues: number;
+  lastPaymentDate: Date | null;
+}
+
+export interface Transaction {
+  id: string;
+  userId: string;
+  user: { id: string; name: string; email: string } | null;
+  amount: number;
+  type: "paid" | "reduced" | "waived";
+  description: string | null;
+  createdBy: string;
+  createdByUser: { id: string; name: string; email: string } | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreatePaymentDto {
+  userId: string;
+  amount: number;
+  type: "paid" | "reduced" | "waived";
+  description?: string;
+}
+
+export async function getUsersWithDues(
+  user: AppUser
+): Promise<UserWithDues[]> {
+  const response = await fetch(`${API_BASE}/api/payments/users`, {
+    headers: getAuthHeaders(user),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to fetch users with dues" }));
+    throw new Error(
+      error.error || error.message || "Failed to fetch users with dues"
+    );
+  }
+
+  return response.json();
+}
+
+export async function getTransactions(
+  user: AppUser,
+  filters?: {
+    userId?: string;
+    startDate?: string;
+    endDate?: string;
+    type?: "paid" | "reduced" | "waived";
+  }
+): Promise<Transaction[]> {
+  const params = new URLSearchParams();
+  if (filters?.userId) params.set("userId", filters.userId);
+  if (filters?.startDate) params.set("startDate", filters.startDate);
+  if (filters?.endDate) params.set("endDate", filters.endDate);
+  if (filters?.type) params.set("type", filters.type);
+
+  const response = await fetch(
+    `${API_BASE}/api/payments?${params.toString()}`,
+    {
+      headers: getAuthHeaders(user),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to fetch transactions" }));
+    throw new Error(
+      error.error || error.message || "Failed to fetch transactions"
+    );
+  }
+
+  return response.json();
+}
+
+export async function createPayment(
+  data: CreatePaymentDto,
+  user: AppUser
+): Promise<Transaction & { updatedDues: number }> {
+  const response = await fetch(`${API_BASE}/api/payments`, {
+    method: "POST",
+    headers: getAuthHeaders(user),
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to create payment" }));
+    throw new Error(
+      error.error || error.message || "Failed to create payment"
+    );
+  }
+
+  return response.json();
+}
+
+// Reports Functions
+
+export interface UserReportData {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  avatarUrl: string | null;
+  totalOpened: number;
+  totalClosed: number;
+  totalUnopened: number;
+  totalUnclosed: number;
+  totalFine: number;
+  guestCount: number;
+  guestExpense: number;
+  baseExpense: number;
+  totalDues: number;
+}
+
+export interface ReportsStats {
+  totalDays: number;
+  workDays: number;
+  sundays: number;
+  totalUsers: number;
+  totalFine: number;
+  totalOpened: number;
+  totalClosed: number;
+  totalUnopened: number;
+  totalUnclosed: number;
+  totalGuests: number;
+  totalGuestExpenses: number;
+  totalBaseExpenses: number;
+  totalDues: number;
+}
+
+export interface ReportsResponse {
+  reports: UserReportData[];
+  stats: ReportsStats;
+  dateRange: {
+    start: string;
+    end: string;
+  };
+}
+
+export async function getReports(
+  user: AppUser,
+  startDate: string,
+  endDate: string
+): Promise<ReportsResponse> {
+  const params = new URLSearchParams();
+  params.set("startDate", startDate);
+  params.set("endDate", endDate);
+
+  const response = await fetch(
+    `${API_BASE}/api/admin/reports?${params.toString()}`,
+    {
+      headers: getAuthHeaders(user),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to fetch reports" }));
+    throw new Error(
+      error.error || error.message || "Failed to fetch reports"
+    );
+  }
+
+  return response.json();
+}

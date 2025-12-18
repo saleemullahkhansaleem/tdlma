@@ -5,6 +5,7 @@ import { UpdateAttendanceDto } from "@/lib/types/attendance";
 import { eq } from "drizzle-orm";
 import { calculateRemark } from "@/lib/utils";
 import { auditLog } from "@/lib/middleware/audit";
+import { sendNotification } from "@/lib/utils/notifications";
 
 export async function PATCH(
   request: NextRequest,
@@ -150,6 +151,36 @@ export async function PATCH(
         isOpen: body.isOpen,
         userId: existingAttendance.userId,
       });
+    }
+
+    // Send notifications
+    const oldFine = parseFloat(existingAttendance.fineAmount || "0");
+    const newFine = parseFloat(updatedAttendance.fineAmount || "0");
+
+    // Notify if fine was added or increased
+    if (newFine > oldFine && newFine > 0) {
+      const fineDate = new Date(updatedAttendance.date).toLocaleDateString();
+      await sendNotification(existingAttendance.userId, {
+        type: "fine_added",
+        title: "Fine Added",
+        message: `Fine of Rs ${newFine.toFixed(2)} has been added for ${fineDate}. Reason: ${computedRemark || "Unspecified"}`,
+        sendEmail: true,
+      });
+    }
+
+    // Notify if meal was closed/opened by admin
+    if (isAdmin && body.isOpen !== undefined) {
+      const wasOpen = existingAttendance.isOpen ?? true;
+      const nowOpen = updatedAttendance.isOpen ?? true;
+      if (wasOpen !== nowOpen) {
+        const mealDate = new Date(updatedAttendance.date).toLocaleDateString();
+        await sendNotification(existingAttendance.userId, {
+          type: "meal_status_changed",
+          title: "Meal Status Changed",
+          message: `Meal has been ${nowOpen ? "opened" : "closed"} by admin for ${mealDate}`,
+          sendEmail: true,
+        });
+      }
     }
 
     return NextResponse.json(response);

@@ -77,7 +77,6 @@ export async function POST(request: NextRequest) {
         designation: body.designation || null,
         userType: body.userType || null,
         avatarUrl: body.avatarUrl || null,
-        monthlyExpense: body.monthlyExpense ? body.monthlyExpense.toString() : "0",
       })
       .returning();
 

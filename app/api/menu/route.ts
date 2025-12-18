@@ -3,6 +3,7 @@ import { db, menus } from "@/lib/db";
 import { requireAdmin, requireAuth } from "@/lib/middleware/auth";
 import { CreateMenuDto } from "@/lib/types/menu";
 import { eq, and } from "drizzle-orm";
+import { notifyAllUsers } from "@/lib/utils/notifications";
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,6 +41,14 @@ export async function POST(request: NextRequest) {
         .where(eq(menus.id, existingMenu.id))
         .returning();
 
+      // Notify all users
+      await notifyAllUsers({
+        type: "menu_updated",
+        title: "Menu Updated",
+        message: `Menu for ${body.dayOfWeek} (${body.weekType} week) has been updated.`,
+        sendEmail: true,
+      });
+
       return NextResponse.json(updatedMenu);
     }
 
@@ -52,6 +61,14 @@ export async function POST(request: NextRequest) {
         menuItems: body.menuItems,
       })
       .returning();
+
+    // Notify all users
+    await notifyAllUsers({
+      type: "menu_created",
+      title: "New Menu Added",
+      message: `New menu for ${body.dayOfWeek} (${body.weekType} week) has been added.`,
+      sendEmail: true,
+    });
 
     return NextResponse.json(newMenu, { status: 201 });
   } catch (error: any) {
