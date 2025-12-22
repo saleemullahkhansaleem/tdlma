@@ -85,12 +85,13 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
     }
   }
 
-  // Use SMTP_USER as the "from" address if SMTP_FROM is not set
-  // This ensures the "from" address matches the authenticated user
+  // Use proper sender name format: "TDLMA – Tensai Devs" <food@tensaidevs.com>
   const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER || "food@tensaidevs.com";
+  const fromName = process.env.SMTP_FROM_NAME || "TDLMA – Tensai Devs";
+  const from = `"${fromName}" <${fromAddress}>`;
 
   const mailOptions = {
-    from: fromAddress,
+    from,
     to,
     subject,
     text: text || html.replace(/<[^>]*>/g, ""), // Strip HTML tags for text version

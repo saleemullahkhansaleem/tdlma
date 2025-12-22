@@ -8,7 +8,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FileText, Search, Filter } from "lucide-react";
+import { FileText, Search, Filter, Trash2, AlertCircle, CheckCircle2, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface AuditLog {
   id: string;
@@ -39,6 +48,11 @@ export default function AuditLogsPage() {
   const [loading, setLoading] = useState(true);
   const [searchAction, setSearchAction] = useState("");
   const [selectedEntityType, setSelectedEntityType] = useState<string>("all");
+  const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   // Check if user is super admin
   useEffect(() => {
@@ -102,6 +116,87 @@ export default function AuditLogsPage() {
     return d.toLocaleString();
   };
 
+  const toggleLogSelection = (logId: string) => {
+    setSelectedLogs((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(logId)) {
+        newSet.delete(logId);
+      } else {
+        newSet.add(logId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedLogs.size === logs.length) {
+      setSelectedLogs(new Set());
+    } else {
+      setSelectedLogs(new Set(logs.map((log) => log.id)));
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!user || selectedLogs.size === 0) return;
+
+    setDeleteLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch("/api/admin/audit-logs", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": user.id,
+          "x-user-email": user.email,
+          "x-user-name": user.name,
+          "x-user-role": user.role,
+        },
+        body: JSON.stringify({
+          ids: Array.from(selectedLogs),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to delete audit logs");
+      }
+
+      const data = await response.json();
+      setSuccess(data.message || "Audit logs deleted successfully");
+      setSelectedLogs(new Set());
+      setDeleteDialogOpen(false);
+
+      // Reload audit logs
+      const params = new URLSearchParams();
+      if (searchAction) params.set("action", searchAction);
+      if (selectedEntityType && selectedEntityType !== "all") {
+        params.set("entityType", selectedEntityType);
+      }
+      params.set("limit", "100");
+
+      const reloadResponse = await fetch(`/api/admin/audit-logs?${params.toString()}`, {
+        headers: {
+          "x-user-id": user.id,
+          "x-user-email": user.email,
+          "x-user-name": user.name,
+          "x-user-role": user.role,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (reloadResponse.ok) {
+        const reloadData = await reloadResponse.json();
+        setLogs(reloadData.logs || []);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to delete audit logs");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="space-y-6">
@@ -153,6 +248,39 @@ export default function AuditLogsPage() {
         </CardContent>
       </Card>
 
+      {/* Success/Error Messages */}
+      {success && (
+        <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 p-4 flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+            {success}
+          </p>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 ml-auto"
+            onClick={() => setSuccess(null)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4 flex items-center gap-3">
+          <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
+          <p className="text-sm font-medium text-destructive">{error}</p>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 ml-auto"
+            onClick={() => setError(null)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
       <div className="space-y-4">
           <Card>
             <CardHeader>
@@ -174,7 +302,25 @@ export default function AuditLogsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Audit Logs</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>Audit Logs</CardTitle>
+                {selectedLogs.size > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      {selectedLogs.size} selected
+                    </span>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setDeleteDialogOpen(true)}
+                      className="rounded-full"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Selected
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (
@@ -201,17 +347,30 @@ export default function AuditLogsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={logs.length > 0 && selectedLogs.size === logs.length}
+                            onCheckedChange={toggleSelectAll}
+                          />
+                        </TableHead>
                         <TableHead>Date & Time</TableHead>
                         <TableHead>User</TableHead>
                         <TableHead>Action</TableHead>
                         <TableHead>Entity Type</TableHead>
                         <TableHead>Entity ID</TableHead>
                         <TableHead>Details</TableHead>
+                        <TableHead className="w-20">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {logs.map((log) => (
                         <TableRow key={log.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedLogs.has(log.id)}
+                              onCheckedChange={() => toggleLogSelection(log.id)}
+                            />
+                          </TableCell>
                           <TableCell className="text-sm">
                             {formatDate(log.createdAt)}
                           </TableCell>
@@ -247,6 +406,19 @@ export default function AuditLogsPage() {
                               <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedLogs(new Set([log.id]));
+                                setDeleteDialogOpen(true);
+                              }}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -256,6 +428,34 @@ export default function AuditLogsPage() {
             </CardContent>
           </Card>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Audit Logs</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedLogs.size} audit log(s)? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deleteLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteLoading}
+            >
+              {deleteLoading ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

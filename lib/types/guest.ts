@@ -17,3 +17,11 @@ export interface CreateGuestDto {
   date: string;
   mealType: MealType;
 }
+
+export interface UpdateGuestDto {
+  id: string;
+  inviterId: string;
+  name: string;
+  date: string;
+  mealType: MealType;
+}

@@ -3,14 +3,15 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AddGuestModal } from "@/components/admin/add-guest-modal";
 import { AttendanceList } from "@/components/admin/attendance-list";
 import { DateFilter } from "@/components/admin/date-filter";
 import { AttendanceWithUser } from "@/lib/types/attendance";
 import { getAttendance } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckSquare, Search } from "lucide-react";
+import { CheckSquare, Plus, Search, UserPlus } from "lucide-react";
+import Link from "next/link";
+import { AddGuestModal } from "@/components/admin/add-guest-modal";
 
 export default function MarkAttendancePage() {
   const { user } = useAuth();
@@ -103,13 +104,23 @@ export default function MarkAttendancePage() {
             Update attendance and add guests for the selected date
           </p>
         </div>
-        <div>
+        <div className="flex gap-2">
           <Button
             className="rounded-full w-full sm:w-auto"
             onClick={() => setOpenGuest(true)}
           >
+            <Plus className="h-4 w-4" />
             Add Guest
           </Button>
+          <Link href="/admin/guests">
+            <Button
+              variant="outline"
+              className="rounded-full w-full sm:w-auto"
+            >
+              <UserPlus className="h-4 w-4" />
+              Guest Management
+            </Button>
+          </Link>
         </div>
       </div>
 

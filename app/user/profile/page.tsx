@@ -35,6 +35,9 @@ import {
   Edit2,
   X,
   ArrowLeft,
+  CheckCircle,
+  XCircle,
+  Clock,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -59,6 +62,7 @@ export default function UserProfilePage() {
     newPassword: "",
     confirmPassword: "",
   });
+  const [sendingVerification, setSendingVerification] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -110,6 +114,41 @@ export default function UserProfilePage() {
       setError(err.message || "Failed to update profile");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!currentUser) return;
+
+    setSendingVerification(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch("/api/auth/send-verification", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": currentUser.id,
+          "x-user-email": currentUser.email,
+          "x-user-name": currentUser.name,
+          "x-user-role": currentUser.role,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to send verification email");
+      }
+
+      setSuccess(data.message || "Verification email sent successfully");
+      // Reload profile to get updated verification status
+      loadProfile();
+    } catch (err: any) {
+      setError(err.message || "Failed to send verification email");
+    } finally {
+      setSendingVerification(false);
     }
   };
 
@@ -330,9 +369,33 @@ export default function UserProfilePage() {
                   <div className="flex-1 space-y-2">
                     <div>
                       <h3 className="text-xl font-semibold">{profile.name}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {profile.email}
-                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-sm text-muted-foreground">
+                          {profile.email}
+                        </p>
+                        {profile.emailVerified !== undefined && (
+                          <Badge
+                            variant={profile.emailVerified ? "default" : "outline"}
+                            className={
+                              profile.emailVerified
+                                ? "bg-green-500 hover:bg-green-600"
+                                : "bg-yellow-500 hover:bg-yellow-600"
+                            }
+                          >
+                            {profile.emailVerified ? (
+                              <>
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Verified
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Unverified
+                              </>
+                            )}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     {profile.userType && (
                       <Badge variant="outline">
@@ -372,6 +435,28 @@ export default function UserProfilePage() {
                     <label className="text-sm font-medium flex items-center gap-2">
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       Email
+                      {profile.emailVerified !== undefined && (
+                        <Badge
+                          variant={profile.emailVerified ? "default" : "outline"}
+                          className={
+                            profile.emailVerified
+                              ? "bg-green-500 hover:bg-green-600 text-white"
+                              : "bg-yellow-500 hover:bg-yellow-600 text-white"
+                          }
+                        >
+                          {profile.emailVerified ? (
+                            <>
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Verified
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="h-3 w-3 mr-1" />
+                              Unverified
+                            </>
+                          )}
+                        </Badge>
+                      )}
                     </label>
                     {editMode ? (
                       <Input
@@ -384,8 +469,31 @@ export default function UserProfilePage() {
                         className="rounded-full"
                       />
                     ) : (
-                      <div className="text-sm text-foreground px-4 py-2 bg-muted/50 rounded-full border">
-                        {profile.email}
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm text-foreground px-4 py-2 bg-muted/50 rounded-full border flex-1">
+                          {profile.email}
+                        </div>
+                        {profile.emailVerified === false && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleResendVerification}
+                            disabled={sendingVerification}
+                            className="rounded-full"
+                          >
+                            {sendingVerification ? (
+                              <>
+                                <Clock className="h-3 w-3 mr-1 animate-spin" />
+                                Sending...
+                              </>
+                            ) : (
+                              <>
+                                <Mail className="h-3 w-3 mr-1" />
+                                Resend
+                              </>
+                            )}
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>

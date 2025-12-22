@@ -7,6 +7,7 @@ import { calculateRemark } from "@/lib/utils";
 import { auditLog } from "@/lib/middleware/audit";
 import { sendNotification } from "@/lib/utils/notifications";
 import { getAllSettingsForDate } from "@/lib/utils/settings-history";
+import { createFineTransaction } from "@/lib/utils/transaction-helper";
 
 export async function PATCH(
   request: NextRequest,
@@ -150,7 +151,7 @@ export async function PATCH(
       });
     }
 
-    // Send notifications
+    // Send notifications and create transactions
     const oldFine = parseFloat(existingAttendance.fineAmount || "0");
     const newFine = parseFloat(updatedAttendance.fineAmount || "0");
 
@@ -163,6 +164,22 @@ export async function PATCH(
         message: `Fine of Rs ${newFine.toFixed(2)} has been added for ${fineDate}. Reason: ${computedRemark || "Unspecified"}`,
         sendEmail: true,
       });
+
+      // Create transaction for the fine increase
+      try {
+        const fineIncrease = newFine - oldFine;
+        const fineType = computedRemark === "Unclosed" ? "unclosed" : "unopened";
+        await createFineTransaction(
+          existingAttendance.userId,
+          fineType,
+          fineIncrease,
+          updatedAttendance.date,
+          user.id
+        );
+      } catch (transactionError) {
+        // Log error but don't fail the attendance update
+        console.error("Failed to create transaction for fine:", transactionError);
+      }
     }
 
     // Notify if meal was closed/opened by admin

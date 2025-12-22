@@ -11,6 +11,7 @@ import { eq, and, sql, lte } from "drizzle-orm";
 import { calculateRemark } from "@/lib/utils";
 import { auditLog } from "@/lib/middleware/audit";
 import { getAllSettingsForDate } from "@/lib/utils/settings-history";
+import { createFineTransaction } from "@/lib/utils/transaction-helper";
 
 export async function GET(request: NextRequest) {
   try {
@@ -262,6 +263,23 @@ export async function POST(request: NextRequest) {
       ...newAttendance,
       remark: computedRemark,
     };
+
+    // Create transaction for fine if applicable
+    if (parseFloat(calculatedFine) > 0) {
+      try {
+        const fineType = remark === "Unclosed" ? "unclosed" : "unopened";
+        await createFineTransaction(
+          body.userId,
+          fineType,
+          parseFloat(calculatedFine),
+          body.date,
+          admin.id
+        );
+      } catch (transactionError) {
+        // Log error but don't fail the attendance creation
+        console.error("Failed to create transaction for fine:", transactionError);
+      }
+    }
 
     // Create audit log
     await auditLog(admin, "CREATE_ATTENDANCE", "attendance", newAttendance.id, {

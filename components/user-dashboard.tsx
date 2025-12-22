@@ -16,7 +16,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { MessageSquare, User, LogOut, FileText, DollarSign, Calendar } from "lucide-react";
+import { MessageSquare, User, LogOut, FileText, DollarSign, Calendar, Receipt } from "lucide-react";
 import { NotificationBell } from "@/components/user/notification-bell";
 import { TodayMenu } from "@/components/today-menu";
 import { getAllMenus, getAttendance, updateAttendance, createAttendance, getSettings, getOffDays, getMonthlyExpenses, MonthlyExpenses, getProfile, getGuests } from "@/lib/api/client";
@@ -965,8 +965,14 @@ export default function UserDashboard() {
                   </DropdownMenuItem>
                   <DropdownMenuItem className="cursor-pointer" asChild>
                     <Link href="/user/my-feedback" className="flex items-center">
-                      <FileText />
+                      <FileText className="mr-2 h-4 w-4" />
                       My Feedback
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer" asChild>
+                    <Link href="/user/transactions" className="flex items-center">
+                      <Receipt className="mr-2 h-4 w-4" />
+                      Transactions
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem

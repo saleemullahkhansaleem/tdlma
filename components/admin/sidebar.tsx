@@ -21,6 +21,7 @@ import {
   Bell,
   Calendar,
   BellDot,
+  UserPlus,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -41,6 +42,7 @@ const navItems = [
   { href: "/admin/menu", label: "Menu", icon: UtensilsCrossed },
   { href: "/admin/mark-attendance", label: "Mark Attendance", icon: CheckSquare },
   { href: "/admin/view-attendance", label: "View Attendance", icon: Users },
+  { href: "/admin/guests", label: "Guest Management", icon: UserPlus },
   { href: "/admin/view-reports", label: "View Reports", icon: BarChart2 },
   { href: "/admin/payments", label: "Payments", icon: CreditCard },
   { href: "/admin/off-days", label: "Off Days", icon: Calendar },

@@ -75,7 +75,7 @@ export default function SendNotificationsPage() {
   const [formData, setFormData] = useState({
     title: "",
     message: "",
-    recipientType: "all_users" as "all_users" | "specific_users" | "students" | "employees" | "admins",
+    recipientType: "all_users" as "all_users" | "all_consumers" | "specific_users" | "students" | "employees" | "admins",
     userIds: [] as string[],
     sendEmail: true,
   });
@@ -107,6 +107,9 @@ export default function SendNotificationsPage() {
   const getRecipientCount = (): number => {
     switch (formData.recipientType) {
       case "all_users":
+        return allUsers.filter((u) => u.role === "user" && u.status === "Active").length;
+      case "all_consumers":
+        // All users with role="user" and status="Active", excluding admins and super_admins
         return allUsers.filter((u) => u.role === "user" && u.status === "Active").length;
       case "specific_users":
         return formData.userIds.length;
@@ -239,6 +242,11 @@ export default function SendNotificationsPage() {
     {
       id: "all_users",
       label: "All Users",
+      icon: <Users className="h-4 w-4" />,
+    },
+    {
+      id: "all_consumers",
+      label: "All Consumers",
       icon: <Users className="h-4 w-4" />,
     },
     {

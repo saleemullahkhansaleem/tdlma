@@ -19,7 +19,7 @@ import {
   UpdateAttendanceDto,
   MealType,
 } from "@/lib/types/attendance";
-import { CreateGuestDto, Guest } from "@/lib/types/guest";
+import { CreateGuestDto, UpdateGuestDto, Guest } from "@/lib/types/guest";
 import { Settings, UpdateSettingsDto } from "@/lib/types/settings";
 import { OffDay, CreateOffDayDto, UpdateOffDayDto } from "@/lib/types/off-days";
 
@@ -478,6 +478,60 @@ export async function getGuests(
   return response.json();
 }
 
+export async function updateGuest(
+  data: UpdateGuestDto,
+  user: AppUser
+): Promise<Guest> {
+  const response = await fetch(`${API_BASE}/api/guests`, {
+    method: "PUT",
+    headers: getAuthHeaders(user),
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to update guest" }));
+    throw new Error(error.error || error.message || "Failed to update guest");
+  }
+
+  return response.json();
+}
+
+export async function deleteGuest(
+  id: string,
+  user: AppUser
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/guests?id=${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(user),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to delete guest" }));
+    throw new Error(error.error || error.message || "Failed to delete guest");
+  }
+}
+
+export async function deleteGuests(
+  ids: string[],
+  user: AppUser
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/guests?ids=${JSON.stringify(ids)}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(user),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to delete guests" }));
+    throw new Error(error.error || error.message || "Failed to delete guests");
+  }
+}
+
 // Settings Management Functions (Admin Only)
 
 export async function getSettings(user: AppUser): Promise<Settings> {
@@ -733,6 +787,26 @@ export async function changePassword(
       .catch(() => ({ message: "Failed to change password" }));
     throw new Error(
       error.error || error.message || "Failed to change password"
+    );
+  }
+
+  return response.json();
+}
+
+export async function resendVerificationEmail(
+  user: AppUser
+): Promise<{ message: string }> {
+  const response = await fetch(`${API_BASE}/api/auth/send-verification`, {
+    method: "POST",
+    headers: getAuthHeaders(user),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to send verification email" }));
+    throw new Error(
+      error.error || error.message || "Failed to send verification email"
     );
   }
 

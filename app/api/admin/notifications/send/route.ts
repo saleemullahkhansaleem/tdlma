@@ -7,7 +7,7 @@ import { sendNotification as sendNotificationUtil, notifyAllUsers, notifyAllAdmi
 export interface SendNotificationDto {
   title: string;
   message: string;
-  recipientType: "all_users" | "specific_users" | "students" | "employees" | "admins";
+  recipientType: "all_users" | "all_consumers" | "specific_users" | "students" | "employees" | "admins";
   userIds?: string[];
   sendEmail?: boolean;
 }
@@ -46,6 +46,23 @@ export async function POST(request: NextRequest) {
           .from(users)
           .where(and(eq(users.role, "user"), eq(users.status, "Active")));
         recipientIds = allUsers.map((u) => u.id);
+        await notifyAllUsers({
+          type: "admin_notification",
+          title: body.title,
+          message: body.message,
+          sendEmail,
+        });
+        notificationCount = recipientIds.length;
+        break;
+      }
+
+      case "all_consumers": {
+        // All consumers: users with role="user" and status="Active" (excludes admins and super_admins)
+        const allConsumers = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(and(eq(users.role, "user"), eq(users.status, "Active")));
+        recipientIds = allConsumers.map((u) => u.id);
         await notifyAllUsers({
           type: "admin_notification",
           title: body.title,

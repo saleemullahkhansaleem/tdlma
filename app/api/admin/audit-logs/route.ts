@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, auditLogs, users } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/middleware/auth";
-import { eq, desc, and, gte, lte, sql, count } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql, count, inArray } from "drizzle-orm";
+import { auditLog } from "@/lib/middleware/audit";
 
 export async function GET(request: NextRequest) {
   try {
@@ -108,6 +109,98 @@ export async function GET(request: NextRequest) {
       { 
         error: "Internal server error",
         details: process.env.NODE_ENV === "development" ? error.message : undefined
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const superAdmin = requireSuperAdmin(request);
+    const body = await request.json();
+
+    // Validate request body
+    if (!body.ids || !Array.isArray(body.ids) || body.ids.length === 0) {
+      return NextResponse.json(
+        { error: "Missing or invalid 'ids' array in request body" },
+        { status: 400 }
+      );
+    }
+
+    // Validate all IDs are strings
+    if (!body.ids.every((id: any) => typeof id === "string")) {
+      return NextResponse.json(
+        { error: "All IDs must be strings" },
+        { status: 400 }
+      );
+    }
+
+    try {
+      // Get audit logs before deletion for audit trail
+      const logsToDelete = await db
+        .select()
+        .from(auditLogs)
+        .where(inArray(auditLogs.id, body.ids));
+
+      if (logsToDelete.length === 0) {
+        return NextResponse.json(
+          { error: "No audit logs found with the provided IDs" },
+          { status: 404 }
+        );
+      }
+
+      // Delete audit logs
+      await db
+        .delete(auditLogs)
+        .where(inArray(auditLogs.id, body.ids));
+
+      // Create audit log entry for deletion
+      await auditLog(
+        superAdmin,
+        "DELETE_AUDIT_LOGS",
+        "audit_log",
+        undefined,
+        {
+          deletedCount: logsToDelete.length,
+          deletedIds: body.ids,
+          deletedActions: logsToDelete.map((log) => log.action),
+        }
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: `Successfully deleted ${logsToDelete.length} audit log(s)`,
+        deletedCount: logsToDelete.length,
+      });
+    } catch (dbError: any) {
+      // Check if error is due to missing table
+      if (
+        dbError.message?.includes("does not exist") ||
+        dbError.message?.includes("relation") ||
+        dbError.code === "42P01"
+      ) {
+        return NextResponse.json(
+          {
+            error: "Audit logs table not found. Please run database migrations.",
+          },
+          { status: 404 }
+        );
+      }
+      throw dbError;
+    }
+  } catch (error: any) {
+    if (error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (error.message?.includes("Forbidden")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    console.error("Error deleting audit logs:", error);
+    return NextResponse.json(
+      {
+        error: "Internal server error",
+        details: process.env.NODE_ENV === "development" ? error.message : undefined,
       },
       { status: 500 }
     );
