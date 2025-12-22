@@ -4,10 +4,10 @@ import {
   users,
   attendance,
   guests,
-  settings as settingsTable,
 } from "@/lib/db";
 import { requireAuth } from "@/lib/middleware/auth";
 import { eq, and, gte, lte } from "drizzle-orm";
+import { getSetting } from "@/lib/utils/settings-history";
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,14 +41,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Get settings for monthly expense per head
-    const [settings] = await db.select().from(settingsTable).limit(1);
-    if (!settings) {
-      return NextResponse.json({ error: "Settings not found" }, { status: 404 });
-    }
-    
-    // Use monthlyExpensePerHead from settings (applies to all users)
-    const monthlyExpense = parseFloat(settings.monthlyExpensePerHead || "0");
+    // Get monthly expense per head from new normalized settings system
+    // Use the middle of the month to get the setting that applies for that month
+    const monthMiddle = new Date(year, month - 1, 15);
+    const monthlyExpensePerHeadStr = await getSetting("monthly_expense_per_head", monthMiddle);
+    const monthlyExpense = parseFloat(monthlyExpensePerHeadStr || "0");
     
     // For now, assume meal cost is 0 or we'll add it to settings later
     const mealCost = 0; // TODO: Add mealCost to settings

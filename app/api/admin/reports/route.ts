@@ -4,7 +4,6 @@ import {
   users,
   attendance,
   guests,
-  settings as settingsTable,
   transactions,
   offDays,
 } from "@/lib/db";
@@ -67,20 +66,13 @@ export async function GET(request: NextRequest) {
     startDate.setHours(0, 0, 0, 0);
     endDate.setHours(23, 59, 59, 999);
 
-    // Get settings
-    const [settings] = await db.select().from(settingsTable).limit(1);
-    if (!settings) {
-      return NextResponse.json(
-        { error: "Settings not found" },
-        { status: 404 }
-      );
-    }
-
-    const fineAmountUnclosed = parseFloat(settings.fineAmountUnclosed || "0");
-    const fineAmountUnopened = parseFloat(settings.fineAmountUnopened || "0");
-    const monthlyExpensePerHead = parseFloat(
-      settings.monthlyExpensePerHead || "0"
-    );
+    // Get settings for date range (use end date for settings)
+    // Note: This uses current settings as approximation for all dates in range
+    // For accurate per-date settings, would need to query settings for each date individually
+    const reportSettings = await getAllSettingsForDate(endDate);
+    const fineAmountUnclosed = reportSettings.fineAmountUnclosed;
+    const fineAmountUnopened = reportSettings.fineAmountUnopened;
+    const monthlyExpensePerHead = reportSettings.monthlyExpensePerHead;
 
     // Get all off-days
     const allOffDays = await db.select().from(offDays);

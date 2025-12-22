@@ -8,6 +8,7 @@ import {
   boolean,
   pgEnum,
   json,
+  jsonb,
   date,
   integer,
 } from "drizzle-orm/pg-core";
@@ -139,34 +140,13 @@ export const guests = pgTable("guests", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Settings Table (Global settings, single row)
+// Settings Table (Normalized settings definitions - metadata only)
+// Current values are stored in settings_history where effective_to IS NULL
 export const settings = pgTable("settings", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  closeTime: varchar("close_time", { length: 5 }).default("18:00").notNull(), // Format: HH:mm
-  fineAmountUnclosed: decimal("fine_amount_unclosed", {
-    precision: 10,
-    scale: 2,
-  })
-    .default("0")
-    .notNull(),
-  fineAmountUnopened: decimal("fine_amount_unopened", {
-    precision: 10,
-    scale: 2,
-  })
-    .default("0")
-    .notNull(),
-  guestMealAmount: decimal("guest_meal_amount", {
-    precision: 10,
-    scale: 2,
-  })
-    .default("0")
-    .notNull(),
-  monthlyExpensePerHead: decimal("monthly_expense_per_head", {
-    precision: 10,
-    scale: 2,
-  })
-    .default("0")
-    .notNull(),
+  key: varchar("key", { length: 100 }).primaryKey(), // e.g., "close_time", "fine_amount_unclosed"
+  description: text("description").notNull(), // Human-readable description
+  unit: varchar("unit", { length: 50 }), // e.g., "Rs", "HH:mm", null
+  valueType: varchar("value_type", { length: 50 }).notNull(), // "number", "time", "string", "boolean"
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -262,17 +242,23 @@ export const transactions = pgTable("transactions", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Settings History Table
+
+// Settings History Table (Versioned settings values)
+// Uses effective_from and effective_to for date ranges
+// effective_to IS NULL means this is the currently active setting
+// value is stored as JSONB to support different value types
 export const settingsHistory = pgTable("settings_history", {
   id: uuid("id").defaultRandom().primaryKey(),
-  settingType: varchar("setting_type", { length: 50 }).notNull(), // "fine_amount_unclosed", "fine_amount_unopened", "guest_meal_amount", "monthly_expense_per_head", "close_time"
-  value: text("value").notNull(),
-  effectiveDate: date("effective_date").notNull(),
+  settingKey: varchar("setting_key", { length: 100 })
+    .references(() => settings.key, { onDelete: "cascade" })
+    .notNull(),
+  value: jsonb("value").notNull(), // Stored as JSONB to support number, string, time, boolean
+  effectiveFrom: date("effective_from").notNull(),
+  effectiveTo: date("effective_to"), // NULL means currently active
   createdBy: uuid("created_by")
     .references(() => users.id)
     .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // User Status History Table
@@ -287,4 +273,28 @@ export const userStatusHistory = pgTable("user_status_history", {
     .references(() => users.id)
     .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Icons Table - Stores icon names used throughout the application
+export const icons = pgTable("icons", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  iconName: varchar("icon_name", { length: 100 }).notNull(), // Lucide icon name
+  category: varchar("category", { length: 50 }), // e.g., "notification", "menu", "action"
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Notification Preferences Table
+export const notificationPreferences = pgTable("notification_preferences", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  notificationType: varchar("notification_type", { length: 100 }).notNull().unique(),
+  description: text("description").notNull(),
+  recipientType: varchar("recipient_type", { length: 20 }).default("all").notNull(), // "all", "user", "admin", "super_admin"
+  iconId: uuid("icon_id").references(() => icons.id, { onDelete: "set null" }),
+  enabled: boolean("enabled").default(true).notNull(),
+  sendEmail: boolean("send_email").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

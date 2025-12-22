@@ -18,6 +18,9 @@ import {
   FileText,
   CreditCard,
   Send,
+  Bell,
+  Calendar,
+  BellDot,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -40,13 +43,17 @@ const navItems = [
   { href: "/admin/view-attendance", label: "View Attendance", icon: Users },
   { href: "/admin/view-reports", label: "View Reports", icon: BarChart2 },
   { href: "/admin/payments", label: "Payments", icon: CreditCard },
+  { href: "/admin/off-days", label: "Off Days", icon: Calendar },
   { href: "/admin/feedback", label: "Feedback Management", icon: MessageSquare },
-  { href: "/admin/notifications", label: "Send Notifications", icon: Send },
+  // { href: "/admin/notifications", label: "Notifications", icon: Bell },
+  { href: "/admin/send-notifications", label: "Send Notifications", icon: Send },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 const superAdminNavItems = [
   { href: "/admin/users", label: "Users", icon: UserCog },
   { href: "/admin/audit-logs", label: "Audit Logs", icon: FileText },
+  { href: "/admin/notification-settings", label: "Notification Settings", icon: BellDot },
 ];
 
 export function AdminSidebar({
@@ -70,7 +77,7 @@ export function AdminSidebar({
   return (
     <Sidebar className={disableCollapse ? "w-64" : undefined}>
       <SidebarHeader>
-        <div className="flex w-full items-center gap-2">
+        <Link href="/admin/dashboard" className="flex w-full items-center gap-2" tabIndex={-1}>
           <Image
             src="/logo.svg"
             alt="TDLMA"
@@ -88,7 +95,7 @@ export function AdminSidebar({
               </span>
             </div>
           )}
-        </div>
+        </Link>
       </SidebarHeader>
 
       <SidebarContent>
@@ -116,18 +123,6 @@ export function AdminSidebar({
 
       <SidebarFooter>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <Link href="/admin/settings" onClick={onNavigate} className="block">
-              <SidebarMenuButton
-                isActive={pathname?.startsWith("/admin/settings")}
-                tooltip="Settings"
-                className={disableCollapse ? "w-full justify-start px-3" : "w-full"}
-              >
-                <Settings className="size-4 shrink-0" />
-                {!effectiveCollapsed && <span>Settings</span>}
-              </SidebarMenuButton>
-            </Link>
-          </SidebarMenuItem>
           <SidebarMenuItem>
             <Link href="/admin/profile" onClick={onNavigate} className="block">
               <SidebarMenuButton

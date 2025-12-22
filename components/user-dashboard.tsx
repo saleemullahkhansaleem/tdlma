@@ -19,10 +19,11 @@ import Link from "next/link";
 import { MessageSquare, User, LogOut, FileText, DollarSign, Calendar } from "lucide-react";
 import { NotificationBell } from "@/components/user/notification-bell";
 import { TodayMenu } from "@/components/today-menu";
-import { getAllMenus, getAttendance, updateAttendance, createAttendance, getSettings, getOffDays, getMonthlyExpenses, MonthlyExpenses, getProfile } from "@/lib/api/client";
+import { getAllMenus, getAttendance, updateAttendance, createAttendance, getSettings, getOffDays, getMonthlyExpenses, MonthlyExpenses, getProfile, getGuests } from "@/lib/api/client";
 import { OffDay } from "@/lib/types/off-days";
 import { Menu, DayOfWeek, WeekType } from "@/lib/types/menu";
 import { AttendanceWithUser } from "@/lib/types/attendance";
+import { Guest } from "@/lib/types/guest";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardFilters } from "@/components/user/dashboard-filters";
 import { FilterType } from "@/lib/utils/date-filters";
@@ -61,17 +62,20 @@ interface TimetableRow {
   canToggle: boolean; // Whether user can toggle open/close
   isOffDay?: boolean; // Whether this date is an off day
   offDayReason?: string; // Reason for the off day
+  beforeCreationMessage?: string; // Message to show if date is before user creation
 }
 
 interface DashboardStatsData {
   totalDays: number;
-  sundays: number;
+  offDays: number;
   workDays: number;
   close: number;
   open: number;
   unclosed: number;
   unopened: number;
   totalFine: number;
+  guests: number;
+  guestExpense: number;
 }
 
 export default function UserDashboard() {
@@ -85,13 +89,15 @@ export default function UserDashboard() {
   const [timetableRows, setTimetableRows] = useState<TimetableRow[]>([]);
   const [stats, setStats] = useState<DashboardStatsData>({
     totalDays: 0,
-    sundays: 0,
+    offDays: 0,
     workDays: 0,
     close: 0,
     open: 0,
     unclosed: 0,
     unopened: 0,
     totalFine: 0,
+    guests: 0,
+    guestExpense: 0,
   });
   const [togglingDates, setTogglingDates] = useState<Set<string>>(new Set());
   const [loadingTimetable, setLoadingTimetable] = useState(true);
@@ -104,6 +110,11 @@ export default function UserDashboard() {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() + 1 };
   });
+  const [currentMonthlyExpense, setCurrentMonthlyExpense] = useState<number>(0);
+  const [currentGuestMealAmount, setCurrentGuestMealAmount] = useState<number>(0);
+  const [futureMonthlyExpense, setFutureMonthlyExpense] = useState<{ value: string; effectiveDate: string } | null>(null);
+  const [futureGuestMealAmount, setFutureGuestMealAmount] = useState<{ value: string; effectiveDate: string } | null>(null);
+  const [loadingExpenseSettings, setLoadingExpenseSettings] = useState(true);
 
   // Load user profile to get creation date
   useEffect(() => {
@@ -143,9 +154,9 @@ export default function UserDashboard() {
         setLoadingSettings(true);
         const settingsData = await getSettings(user);
         setSettings({
-          closeTime: settingsData.closeTime,
-          fineAmountUnclosed: settingsData.fineAmountUnclosed,
-          fineAmountUnopened: settingsData.fineAmountUnopened,
+          closeTime: settingsData.closeTime || "18:00",
+          fineAmountUnclosed: settingsData.fineAmountUnclosed || 0,
+          fineAmountUnopened: settingsData.fineAmountUnopened || 0,
         });
       } catch (error) {
         console.error("Failed to load settings:", error);
@@ -155,6 +166,46 @@ export default function UserDashboard() {
     };
 
     loadSettingsData();
+  }, [user]);
+
+  // Load monthly expense and guest meal amount settings
+  useEffect(() => {
+    const loadExpenseSettings = async () => {
+      if (!user) return;
+
+      try {
+        setLoadingExpenseSettings(true);
+        const settingsData = await getSettings(user);
+        setCurrentMonthlyExpense(settingsData.monthlyExpensePerHead || 0);
+        setCurrentGuestMealAmount(settingsData.guestMealAmount || 0);
+
+        // Fetch future settings from API
+        try {
+          const response = await fetch("/api/settings/future", {
+            headers: {
+              "x-user-id": user.id,
+              "x-user-email": user.email,
+              "x-user-name": user.name,
+              "x-user-role": user.role,
+              "Content-Type": "application/json",
+            },
+          });
+          if (response.ok) {
+            const futureSettings = await response.json();
+            setFutureMonthlyExpense(futureSettings.monthlyExpensePerHead || null);
+            setFutureGuestMealAmount(futureSettings.guestMealAmount || null);
+          }
+        } catch (error) {
+          console.error("Failed to load future settings:", error);
+        }
+      } catch (error) {
+        console.error("Failed to load expense settings:", error);
+      } finally {
+        setLoadingExpenseSettings(false);
+      }
+    };
+
+    loadExpenseSettings();
   }, [user]);
 
   // Load monthly expenses
@@ -239,6 +290,15 @@ export default function UserDashboard() {
           const dayOfWeek = getDayOfWeek(date);
           const weekType = getWeekType(date);
 
+          // Check if date is before user creation
+          const dateOnly = new Date(date);
+          dateOnly.setHours(0, 0, 0, 0);
+          const userCreatedDate = userCreatedAt ? new Date(userCreatedAt) : null;
+          if (userCreatedDate) {
+            userCreatedDate.setHours(0, 0, 0, 0);
+          }
+          const isBeforeCreation = userCreatedDate && dateOnly < userCreatedDate;
+
           // Check if this date is an off day
           const offDay = offDaysMap.get(dateString);
           const isOffDay = !!offDay;
@@ -279,10 +339,27 @@ export default function UserDashboard() {
           const isToday = dateString === todayString;
 
           // Compare dates without time
-          const dateOnly = new Date(date);
-          dateOnly.setHours(0, 0, 0, 0);
           const isPast = dateOnly < today && !isToday;
           const isFuture = dateOnly > today;
+
+          // If date is before user creation, show message instead of status
+          if (isBeforeCreation) {
+            return {
+              date,
+              dateString,
+              dayLabel,
+              subLabel,
+              menuName,
+              menuImage,
+              status: "-",
+              action: "",
+              remark: null,
+              attendanceId: null,
+              canToggle: false,
+              isOffDay: false,
+              beforeCreationMessage: "You were not a member of TD-LMA",
+            };
+          }
 
           if (isOffDay) {
             // Off day - no status, no action
@@ -312,10 +389,15 @@ export default function UserDashboard() {
             } else if (isToday) {
               // Today - can toggle only before close time
               const now = new Date();
-              const [closeHour, closeMinute] = settings.closeTime.split(":").map(Number);
-              const closeTimeDate = new Date();
-              closeTimeDate.setHours(closeHour, closeMinute, 0, 0);
-              canToggle = now < closeTimeDate;
+              const closeTime = settings?.closeTime || "18:00";
+              if (closeTime && typeof closeTime === "string") {
+                const [closeHour, closeMinute] = closeTime.split(":").map(Number);
+                const closeTimeDate = new Date();
+                closeTimeDate.setHours(closeHour, closeMinute, 0, 0);
+                canToggle = now < closeTimeDate;
+              } else {
+                canToggle = true; // Default to allowing toggle if closeTime is invalid
+              }
               action = canToggle ? (isOpen ? "Close" : "Open") : "";
             } else {
               // Future days - can toggle
@@ -330,10 +412,15 @@ export default function UserDashboard() {
               action = "";
             } else if (isToday) {
               const now = new Date();
-              const [closeHour, closeMinute] = settings.closeTime.split(":").map(Number);
-              const closeTimeDate = new Date();
-              closeTimeDate.setHours(closeHour, closeMinute, 0, 0);
-              canToggle = now < closeTimeDate;
+              const closeTime = settings?.closeTime || "18:00";
+              if (closeTime && typeof closeTime === "string") {
+                const [closeHour, closeMinute] = closeTime.split(":").map(Number);
+                const closeTimeDate = new Date();
+                closeTimeDate.setHours(closeHour, closeMinute, 0, 0);
+                canToggle = now < closeTimeDate;
+              } else {
+                canToggle = true; // Default to allowing toggle if closeTime is invalid
+              }
               action = canToggle ? "Close" : "";
             } else {
               canToggle = true;
@@ -360,21 +447,40 @@ export default function UserDashboard() {
 
         setTimetableRows(rows);
 
+        // Fetch guests for the user within the filter date range
+        const filterStartDate = filterDates[0];
+        const filterEndDate = filterDates[filterDates.length - 1];
+        const filterStartStr = `${filterStartDate.getFullYear()}-${String(filterStartDate.getMonth() + 1).padStart(2, "0")}-${String(filterStartDate.getDate()).padStart(2, "0")}`;
+        const filterEndStr = `${filterEndDate.getFullYear()}-${String(filterEndDate.getMonth() + 1).padStart(2, "0")}-${String(filterEndDate.getDate()).padStart(2, "0")}`;
+        
+        let userGuests: Guest[] = [];
+        try {
+          userGuests = await getGuests(user, {
+            inviterId: user.id,
+            startDate: filterStartStr,
+            endDate: filterEndStr,
+          });
+        } catch (error) {
+          console.error("Failed to fetch guests:", error);
+        }
+
         // Calculate stats from filtered data
-        const calculatedStats = calculateStats(filterDates, userAttendance, settings);
+        const calculatedStats = calculateStats(filterDates, userAttendance, settings, offDaysMap, userGuests);
         setStats(calculatedStats);
       } catch (error) {
         console.error("Failed to load timetable:", error);
         setTimetableRows([]);
         setStats({
           totalDays: 0,
-          sundays: 0,
+          offDays: 0,
           workDays: 0,
           close: 0,
           open: 0,
           unclosed: 0,
           unopened: 0,
           totalFine: 0,
+          guests: 0,
+          guestExpense: 0,
         });
       } finally {
         setLoadingTimetable(false);
@@ -530,6 +636,15 @@ export default function UserDashboard() {
         const dayOfWeek = getDayOfWeek(date);
         const weekType = getWeekType(date);
 
+        // Check if date is before user creation
+        const dateOnly = new Date(date);
+        dateOnly.setHours(0, 0, 0, 0);
+        const userCreatedDate = userCreatedAt ? new Date(userCreatedAt) : null;
+        if (userCreatedDate) {
+          userCreatedDate.setHours(0, 0, 0, 0);
+        }
+        const isBeforeCreation = userCreatedDate && dateOnly < userCreatedDate;
+
         // Check if this date is an off day
         const offDay = offDaysMap.get(dateString);
         const isOffDay = !!offDay;
@@ -570,10 +685,27 @@ export default function UserDashboard() {
         const isToday = dateString === todayString;
 
         // Compare dates without time
-        const dateOnly = new Date(date);
-        dateOnly.setHours(0, 0, 0, 0);
         const isPast = dateOnly < today && !isToday;
         const isFuture = dateOnly > today;
+
+        // If date is before user creation, show message instead of status
+        if (isBeforeCreation) {
+          return {
+            date,
+            dateString,
+            dayLabel,
+            subLabel,
+            menuName,
+            menuImage,
+            status: "-",
+            action: "",
+            remark: null,
+            attendanceId: null,
+            canToggle: false,
+            isOffDay: false,
+            beforeCreationMessage: "You were not a member of TD-LMA",
+          };
+        }
 
         if (isOffDay) {
           // Off day - no status, no action
@@ -598,10 +730,15 @@ export default function UserDashboard() {
             action = "";
           } else if (isToday) {
             const now = new Date();
-            const [closeHour, closeMinute] = settings.closeTime.split(":").map(Number);
-            const closeTimeDate = new Date();
-            closeTimeDate.setHours(closeHour, closeMinute, 0, 0);
-            canToggle = now < closeTimeDate;
+            const closeTime = settings?.closeTime || "18:00";
+            if (closeTime && typeof closeTime === "string") {
+              const [closeHour, closeMinute] = closeTime.split(":").map(Number);
+              const closeTimeDate = new Date();
+              closeTimeDate.setHours(closeHour, closeMinute, 0, 0);
+              canToggle = now < closeTimeDate;
+            } else {
+              canToggle = true; // Default to allowing toggle if closeTime is invalid
+            }
             action = canToggle ? (isOpen ? "Close" : "Open") : "";
           } else {
             canToggle = true;
@@ -614,10 +751,15 @@ export default function UserDashboard() {
             action = "";
           } else if (isToday) {
             const now = new Date();
-            const [closeHour, closeMinute] = settings.closeTime.split(":").map(Number);
-            const closeTimeDate = new Date();
-            closeTimeDate.setHours(closeHour, closeMinute, 0, 0);
-            canToggle = now < closeTimeDate;
+            const closeTime = settings?.closeTime || "18:00";
+            if (closeTime && typeof closeTime === "string") {
+              const [closeHour, closeMinute] = closeTime.split(":").map(Number);
+              const closeTimeDate = new Date();
+              closeTimeDate.setHours(closeHour, closeMinute, 0, 0);
+              canToggle = now < closeTimeDate;
+            } else {
+              canToggle = true; // Default to allowing toggle if closeTime is invalid
+            }
             action = canToggle ? "Close" : "";
           } else {
             canToggle = true;
@@ -644,21 +786,40 @@ export default function UserDashboard() {
 
       setTimetableRows(rows);
 
+      // Fetch guests for the user within the filter date range
+      const filterStartDate = filterDates[0];
+      const filterEndDate = filterDates[filterDates.length - 1];
+      const filterStartStr = `${filterStartDate.getFullYear()}-${String(filterStartDate.getMonth() + 1).padStart(2, "0")}-${String(filterStartDate.getDate()).padStart(2, "0")}`;
+      const filterEndStr = `${filterEndDate.getFullYear()}-${String(filterEndDate.getMonth() + 1).padStart(2, "0")}-${String(filterEndDate.getDate()).padStart(2, "0")}`;
+      
+      let userGuests: Guest[] = [];
+      try {
+        userGuests = await getGuests(user, {
+          inviterId: user.id,
+          startDate: filterStartStr,
+          endDate: filterEndStr,
+        });
+      } catch (error) {
+        console.error("Failed to fetch guests:", error);
+      }
+
       // Calculate stats from filtered data
-      const calculatedStats = calculateStats(filterDates, userAttendance, settings);
+      const calculatedStats = calculateStats(filterDates, userAttendance, settings, offDaysMap, userGuests);
       setStats(calculatedStats);
     } catch (error) {
       console.error("Failed to load timetable:", error);
       setTimetableRows([]);
       setStats({
         totalDays: 0,
-        sundays: 0,
+        offDays: 0,
         workDays: 0,
         close: 0,
         open: 0,
         unclosed: 0,
         unopened: 0,
         totalFine: 0,
+        guests: 0,
+        guestExpense: 0,
       });
     } finally {
       setLoadingTimetable(false);
@@ -669,10 +830,12 @@ export default function UserDashboard() {
   function calculateStats(
     dates: Date[],
     attendance: AttendanceWithUser[],
-    settings: { fineAmountUnclosed: number; fineAmountUnopened: number }
+    settings: { fineAmountUnclosed: number; fineAmountUnopened: number },
+    offDaysMap: Map<string, OffDay> | undefined,
+    guests: Guest[] | undefined
   ): DashboardStatsData {
     let totalDays = dates.length;
-    let sundays = 0;
+    let offDays = 0;
     let workDays = 0;
     let close = 0;
     let open = 0;
@@ -680,54 +843,75 @@ export default function UserDashboard() {
     let unopened = 0;
 
     dates.forEach((date) => {
-      const dayOfWeek = getDayOfWeek(date);
-      if (!dayOfWeek) {
-        sundays++;
-      } else {
-        workDays++;
-      }
-
       const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-      const dayAttendance = attendance.find(
-        (a) => a.date === dateString && a.mealType === "Lunch" && a.userId === user?.id
-      );
+      
+      // Check if it's a Sunday (day 0)
+      const isSunday = date.getDay() === 0;
+      
+      // Check if it's a database off day
+      const isDatabaseOffDay = offDaysMap?.has(dateString) || false;
+      
+      // A day is an off day if it's Sunday OR a database off day
+      const isOffDay = isSunday || isDatabaseOffDay;
+      
+      if (isOffDay) {
+        offDays++;
+      } else {
+        // Only count work days (non-off days, non-Sundays)
+        workDays++;
+        
+        const dayOfWeek = getDayOfWeek(date);
+        const dayAttendance = attendance.find(
+          (a) => a.date === dateString && a.mealType === "Lunch" && a.userId === user?.id
+        );
 
-      if (dayAttendance && dayOfWeek) {
-        const isOpen = dayAttendance.isOpen ?? true;
-        // Calculate remark from status and isOpen (computed, not stored)
-        const attendanceStatus = dayAttendance.status === "Present" || dayAttendance.status === "Absent"
-          ? dayAttendance.status
-          : null;
-        const remark = calculateRemark(attendanceStatus, isOpen);
+        // Only process attendance for work days (not Sundays, not off days)
+        if (dayAttendance && dayOfWeek) {
+          const isOpen = dayAttendance.isOpen ?? true;
+          // Calculate remark from status and isOpen (computed, not stored)
+          const attendanceStatus = dayAttendance.status === "Present" || dayAttendance.status === "Absent"
+            ? dayAttendance.status
+            : null;
+          const remark = calculateRemark(attendanceStatus, isOpen);
 
-        if (isOpen) {
+          if (isOpen) {
+            open++;
+          } else {
+            close++;
+          }
+
+          if (remark === "Unclosed") {
+            unclosed++;
+          } else if (remark === "Unopened") {
+            unopened++;
+          }
+        } else if (dayOfWeek) {
+          // No attendance record, default to open (only for work days)
           open++;
-        } else {
-          close++;
         }
-
-        if (remark === "Unclosed") {
-          unclosed++;
-        } else if (remark === "Unopened") {
-          unopened++;
-        }
-      } else if (dayOfWeek) {
-        // No attendance record, default to open
-        open++;
       }
     });
 
     const totalFine = unclosed * settings.fineAmountUnclosed + unopened * settings.fineAmountUnopened;
 
+    // Calculate guests count and expense
+    const guestsCount = guests?.length || 0;
+    const guestExpense = (guests?.reduce((sum, guest) => {
+      const amount = typeof guest.amount === "string" ? parseFloat(guest.amount || "0") : (guest.amount || 0);
+      return sum + amount;
+    }, 0) || 0);
+
     return {
       totalDays,
-      sundays,
+      offDays,
       workDays,
       close,
       open,
       unclosed,
       unopened,
       totalFine,
+      guests: guestsCount,
+      guestExpense,
     };
   }
 
@@ -811,7 +995,7 @@ export default function UserDashboard() {
                   <span className="size-6">⚠️</span>
                   <p className="flex-1 text-sm leading-relaxed">
                     <span className="font-semibold">Reminder:</span> Close time is{" "}
-                    <span className="font-mono font-semibold">{settings.closeTime}</span>. Please
+                    <span className="font-mono font-semibold">{settings?.closeTime || "18:00"}</span>. Please
                     open or close your lunch before the deadline!
                   </p>
                 </CardContent>
@@ -859,6 +1043,49 @@ export default function UserDashboard() {
                       </span>{" "}
                       will be applied.
                     </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Monthly Expense and Guest Meal Amount */}
+            <Card className="border-green-500/20 bg-green-500/10">
+              <CardContent className="p-4">
+                <p className="font-semibold text-foreground">Current Rates</p>
+
+                {loadingExpenseSettings ? (
+                  <div className="mt-4 space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-full" />
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-3 text-xs leading-relaxed text-muted-foreground">
+                    <div>
+                      <p>
+                        <span className="font-semibold text-foreground">Monthly Base Expense:</span>{" "}
+                        <span className="font-mono font-semibold">
+                          Rs {currentMonthlyExpense.toFixed(2)}/-
+                        </span>
+                      </p>
+                      {futureMonthlyExpense && (
+                        <p className="mt-1 text-xs italic">
+                          From {new Date(futureMonthlyExpense.effectiveDate).toLocaleDateString()}: Rs {parseFloat(futureMonthlyExpense.value).toFixed(2)}/-
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <p>
+                        <span className="font-semibold text-foreground">Guest Meal Amount:</span>{" "}
+                        <span className="font-mono font-semibold">
+                          Rs {currentGuestMealAmount.toFixed(2)}/-
+                        </span>
+                      </p>
+                      {futureGuestMealAmount && (
+                        <p className="mt-1 text-xs italic">
+                          From {new Date(futureGuestMealAmount.effectiveDate).toLocaleDateString()}: Rs {parseFloat(futureGuestMealAmount.value).toFixed(2)}/-
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -1082,17 +1309,19 @@ export default function UserDashboard() {
                               )}
                             </TableCell>
                             <TableCell className="px-3 py-3 align-top sm:px-4">
-                              {row.status === "Open" && (
+                              {row.beforeCreationMessage ? (
+                                <span className="text-xs text-muted-foreground italic sm:text-sm">
+                                  {row.beforeCreationMessage}
+                                </span>
+                              ) : row.status === "Open" ? (
                                 <Badge variant="success" className="w-fit text-xs">
                                   Open
                                 </Badge>
-                              )}
-                              {row.status === "Close" && (
+                              ) : row.status === "Close" ? (
                                 <Badge variant="destructive" className="w-fit text-xs">
                                   Close
                                 </Badge>
-                              )}
-                              {row.status === "-" && (
+                              ) : (
                                 <span className="text-xs text-muted-foreground sm:text-sm">-</span>
                               )}
                             </TableCell>

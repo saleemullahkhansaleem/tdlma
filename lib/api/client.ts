@@ -455,12 +455,14 @@ export async function createGuest(
 
 export async function getGuests(
   user: AppUser,
-  filters?: { date?: string; mealType?: MealType; inviterId?: string }
+  filters?: { date?: string; mealType?: MealType; inviterId?: string; startDate?: string; endDate?: string }
 ): Promise<Guest[]> {
   const params = new URLSearchParams();
   if (filters?.date) params.append("date", filters.date);
   if (filters?.mealType) params.append("mealType", filters.mealType);
   if (filters?.inviterId) params.append("inviterId", filters.inviterId);
+  if (filters?.startDate) params.append("startDate", filters.startDate);
+  if (filters?.endDate) params.append("endDate", filters.endDate);
 
   const response = await fetch(`${API_BASE}/api/guests?${params.toString()}`, {
     headers: getAuthHeaders(user),
@@ -509,6 +511,87 @@ export async function updateSettings(
       .catch(() => ({ message: "Failed to update settings" }));
     throw new Error(
       error.error || error.message || "Failed to update settings"
+    );
+  }
+
+  return response.json();
+}
+
+export async function updateSettingField(
+  field: "closeTime" | "fineAmountUnclosed" | "fineAmountUnopened" | "guestMealAmount" | "monthlyExpensePerHead",
+  value: string | number,
+  effectiveDate: string,
+  user: AppUser
+): Promise<Settings> {
+  const response = await fetch(`${API_BASE}/api/settings/field`, {
+    method: "PATCH",
+    headers: getAuthHeaders(user),
+    body: JSON.stringify({
+      field,
+      value,
+      effectiveDate,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to update setting" }));
+    throw new Error(
+      error.error || error.message || "Failed to update setting"
+    );
+  }
+
+  return response.json();
+}
+
+export interface SettingsHistoryEntry {
+  id: string;
+  settingKey: string;
+  value: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  createdBy: string;
+  createdAt: string;
+  creatorName: string | null;
+  creatorEmail: string | null;
+  description: string;
+  unit: string | null;
+  valueType: string;
+  isActive: boolean;
+}
+
+export async function getSettingsHistory(
+  user: AppUser,
+  settingKey?: string
+): Promise<SettingsHistoryEntry[]> {
+  // Build URL - handle both absolute and relative paths
+  let url: string;
+  if (API_BASE) {
+    const urlObj = new URL(`${API_BASE}/api/settings/history`);
+    if (settingKey) {
+      urlObj.searchParams.set("settingKey", settingKey);
+    }
+    url = urlObj.toString();
+  } else {
+    // Relative path - build query string manually
+    const params = new URLSearchParams();
+    if (settingKey) {
+      params.set("settingKey", settingKey);
+    }
+    url = `/api/settings/history${params.toString() ? `?${params.toString()}` : ""}`;
+  }
+
+  const response = await fetch(url, {
+    headers: getAuthHeaders(user),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to fetch settings history" }));
+    throw new Error(
+      error.error || error.message || "Failed to fetch settings history"
     );
   }
 
@@ -660,6 +743,8 @@ export async function changePassword(
 
 export interface DashboardStats {
   totalUsers: number;
+  activeUsers: number;
+  inactiveUsers: number;
   employeeCount: number;
   studentCount: number;
   today: {
@@ -685,6 +770,48 @@ export interface DashboardStats {
     unclosed: number;
     unopened: number;
   }>;
+  financial: {
+    totalDues: number;
+    totalPayments: number;
+    pendingDues: number;
+    guestCount: number;
+    totalGuestExpense: number;
+    totalBaseExpense: number;
+    totalFines: number;
+  };
+  operational: {
+    openMeals: number;
+    closedMeals: number;
+    usersWithUnpaidBalances: number;
+    topUsersByDues: Array<{
+      userId: string;
+      userName: string;
+      dues: number;
+    }>;
+    recentGuests: Array<{
+      id: string;
+      name: string;
+      date: string;
+      inviterName: string;
+    }>;
+    recentFines: Array<{
+      userId: string;
+      userName: string;
+      amount: number;
+      date: string;
+    }>;
+  };
+  feedback: {
+    newCount: number;
+    pendingCount: number;
+    recentFeedback: Array<{
+      id: string;
+      title: string;
+      status: string;
+      userName: string;
+      createdAt: string;
+    }>;
+  };
 }
 
 export async function getDashboardStats(

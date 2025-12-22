@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, attendance, settings } from "@/lib/db";
+import { db, attendance } from "@/lib/db";
 import { requireAdmin, requireAuth } from "@/lib/middleware/auth";
 import { UpdateAttendanceDto } from "@/lib/types/attendance";
 import { eq } from "drizzle-orm";
 import { calculateRemark } from "@/lib/utils";
 import { auditLog } from "@/lib/middleware/audit";
 import { sendNotification } from "@/lib/utils/notifications";
+import { getAllSettingsForDate } from "@/lib/utils/settings-history";
 
 export async function PATCH(
   request: NextRequest,
@@ -82,31 +83,27 @@ export async function PATCH(
       body.fineAmount === undefined &&
       (body.status !== undefined || body.isOpen !== undefined)
     ) {
-      // Get settings to calculate fine
-      const [settingsData] = await db.select().from(settings).limit(1);
+      // Get settings to calculate fine (use attendance date)
+      const attendanceDate = new Date(existingAttendance.date);
+      const settingsData = await getAllSettingsForDate(attendanceDate);
 
-      if (settingsData) {
-        // Calculate remark from final status and isOpen
-        const statusForRemark =
-          finalStatus === "Present" || finalStatus === "Absent"
-            ? finalStatus
-            : null;
-        const remark = calculateRemark(statusForRemark, finalIsOpen);
+      // Calculate remark from final status and isOpen
+      const statusForRemark =
+        finalStatus === "Present" || finalStatus === "Absent"
+          ? finalStatus
+          : null;
+      const remark = calculateRemark(statusForRemark, finalIsOpen);
 
-        // Calculate fine based on remark
-        let calculatedFine = "0";
-        if (remark === "Unclosed") {
-          calculatedFine = settingsData.fineAmountUnclosed || "0";
-        } else if (remark === "Unopened") {
-          calculatedFine = settingsData.fineAmountUnopened || "0";
-        }
-        // "All Clear" or null means no fine (stays "0")
-
-        updateData.fineAmount = calculatedFine;
-      } else {
-        // If no settings found, set fine to 0
-        updateData.fineAmount = "0";
+      // Calculate fine based on remark
+      let calculatedFine = "0";
+      if (remark === "Unclosed") {
+        calculatedFine = settingsData.fineAmountUnclosed.toString();
+      } else if (remark === "Unopened") {
+        calculatedFine = settingsData.fineAmountUnopened.toString();
       }
+      // "All Clear" or null means no fine (stays "0")
+
+      updateData.fineAmount = calculatedFine;
     } else if (body.fineAmount !== undefined && isAdmin) {
       // Only admins can manually set fine amount
       updateData.fineAmount = body.fineAmount.toString();

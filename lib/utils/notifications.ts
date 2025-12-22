@@ -1,4 +1,4 @@
-import { db, notifications, users } from "@/lib/db";
+import { db, notifications, users, notificationPreferences } from "@/lib/db";
 import { eq, or } from "drizzle-orm";
 import { sendEmail } from "@/lib/email";
 
@@ -10,6 +10,35 @@ export interface NotificationOptions {
 }
 
 /**
+ * Get notification preference for a given type
+ */
+async function getNotificationPreference(type: string): Promise<{
+  enabled: boolean;
+  sendEmail: boolean;
+} | null> {
+  try {
+    const [pref] = await db
+      .select()
+      .from(notificationPreferences)
+      .where(eq(notificationPreferences.notificationType, type))
+      .limit(1);
+
+    if (pref) {
+      return {
+        enabled: pref.enabled,
+        sendEmail: pref.sendEmail,
+      };
+    }
+  } catch (error) {
+    // If table doesn't exist yet, return null (defaults to enabled)
+    console.warn("Notification preferences table may not exist:", error);
+  }
+
+  // Default: enabled with email if preference not found
+  return { enabled: true, sendEmail: true };
+}
+
+/**
  * Send notification to a single user (in-app and optionally email)
  */
 export async function sendNotification(
@@ -17,6 +46,17 @@ export async function sendNotification(
   options: NotificationOptions
 ): Promise<void> {
   const { type, title, message, sendEmail: shouldSendEmail = true } = options;
+
+  // Check notification preference
+  const preference = await getNotificationPreference(type);
+  if (preference && !preference.enabled) {
+    // Notification is disabled, don't send
+    return;
+  }
+
+  // Determine if email should be sent
+  const sendEmailNotification =
+    shouldSendEmail && preference?.sendEmail !== false;
 
   // Create in-app notification
   await db.insert(notifications).values({
@@ -27,8 +67,8 @@ export async function sendNotification(
     read: false,
   });
 
-  // Send email notification if requested
-  if (shouldSendEmail) {
+  // Send email notification if requested and enabled
+  if (sendEmailNotification) {
     try {
       const [user] = await db
         .select({ email: users.email, name: users.name })
@@ -54,6 +94,17 @@ export async function notifyAllUsers(
 ): Promise<void> {
   const { type, title, message, sendEmail: shouldSendEmail = true } = options;
 
+  // Check notification preference
+  const preference = await getNotificationPreference(type);
+  if (preference && !preference.enabled) {
+    // Notification is disabled, don't send
+    return;
+  }
+
+  // Determine if email should be sent
+  const sendEmailNotification =
+    shouldSendEmail && preference?.sendEmail !== false;
+
   // Get all active users
   const allUsers = await db
     .select({ id: users.id, email: users.email, name: users.name })
@@ -72,8 +123,8 @@ export async function notifyAllUsers(
       }))
     );
 
-    // Send email notifications if requested
-    if (shouldSendEmail) {
+    // Send email notifications if requested and enabled
+    if (sendEmailNotification) {
       for (const user of allUsers) {
         try {
           await sendNotificationEmail(
@@ -99,6 +150,17 @@ export async function notifyAllAdmins(
 ): Promise<void> {
   const { type, title, message, sendEmail: shouldSendEmail = true } = options;
 
+  // Check notification preference
+  const preference = await getNotificationPreference(type);
+  if (preference && !preference.enabled) {
+    // Notification is disabled, don't send
+    return;
+  }
+
+  // Determine if email should be sent
+  const sendEmailNotification =
+    shouldSendEmail && preference?.sendEmail !== false;
+
   // Get all admins (admin and super_admin roles)
   const allAdmins = await db
     .select({ id: users.id, email: users.email, name: users.name })
@@ -119,8 +181,8 @@ export async function notifyAllAdmins(
       }))
     );
 
-    // Send email notifications if requested
-    if (shouldSendEmail) {
+    // Send email notifications if requested and enabled
+    if (sendEmailNotification) {
       for (const admin of allAdmins) {
         try {
           await sendNotificationEmail(

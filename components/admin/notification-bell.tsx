@@ -40,13 +40,18 @@ export function NotificationBell() {
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-          throw new Error(errorData.error || `Failed to fetch notifications: ${response.status}`);
+          const errorMessage = errorData.error || `Failed to fetch notifications: ${response.status}`;
+          console.error("Notification fetch error:", errorMessage);
+          // Don't throw - just set empty state to prevent UI breaking
+          setNotifications([]);
+          setUnreadCount(0);
+          return;
         }
         
         const data = await response.json();
         setNotifications(data || []);
-        setUnreadCount(data.filter((n: Notification) => !n.read).length);
-      } catch (error) {
+        setUnreadCount((data || []).filter((n: Notification) => !n.read).length);
+      } catch (error: any) {
         console.error("Failed to load notifications:", error);
         // Set empty notifications on error to prevent UI issues
         setNotifications([]);
@@ -122,8 +127,8 @@ export function NotificationBell() {
         <Button variant="ghost" size="icon" className="relative rounded-full">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
-              {unreadCount > 9 ? "9+" : unreadCount}
+            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px]">
+              {unreadCount > 99 ? "99+" : unreadCount}
             </Badge>
           )}
         </Button>

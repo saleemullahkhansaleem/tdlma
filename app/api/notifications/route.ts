@@ -8,14 +8,35 @@ export async function GET(request: NextRequest) {
   try {
     const user = requireAuth(request);
 
-    // Get user's notifications, ordered by most recent first
-    const userNotifications = await db
-      .select()
-      .from(notifications)
-      .where(eq(notifications.userId, user.id))
-      .orderBy(desc(notifications.createdAt));
+    try {
+      // Get user's notifications, ordered by most recent first
+      const userNotifications = await db
+        .select({
+          id: notifications.id,
+          userId: notifications.userId,
+          type: notifications.type,
+          title: notifications.title,
+          message: notifications.message,
+          read: notifications.read,
+          createdAt: notifications.createdAt,
+        })
+        .from(notifications)
+        .where(eq(notifications.userId, user.id))
+        .orderBy(desc(notifications.createdAt));
 
-    return NextResponse.json(userNotifications);
+      return NextResponse.json(userNotifications);
+    } catch (dbError: any) {
+      // Check if error is due to missing table
+      if (
+        dbError.message?.includes("does not exist") ||
+        dbError.message?.includes("relation") ||
+        dbError.code === "42P01"
+      ) {
+        console.warn("Notifications table does not exist yet. Run migrations first.");
+        return NextResponse.json([]);
+      }
+      throw dbError;
+    }
   } catch (error: any) {
     if (error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -24,7 +45,7 @@ export async function GET(request: NextRequest) {
     
     // Provide more details in development
     const errorMessage = process.env.NODE_ENV === "development" 
-      ? error.message || "Internal server error"
+      ? (error.message || error.toString() || "Internal server error")
       : "Internal server error";
     
     return NextResponse.json(

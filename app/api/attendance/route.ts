@@ -4,13 +4,13 @@ import {
   attendance,
   users,
   guests,
-  settings as settingsTable,
 } from "@/lib/db";
 import { requireAdmin, requireAuth } from "@/lib/middleware/auth";
 import { CreateAttendanceDto } from "@/lib/types/attendance";
 import { eq, and, sql, lte } from "drizzle-orm";
 import { calculateRemark } from "@/lib/utils";
 import { auditLog } from "@/lib/middleware/audit";
+import { getAllSettingsForDate } from "@/lib/utils/settings-history";
 
 export async function GET(request: NextRequest) {
   try {
@@ -214,8 +214,9 @@ export async function POST(request: NextRequest) {
     // Default isOpen to true if not provided
     const isOpen = body.isOpen !== undefined ? body.isOpen : true;
 
-    // Get settings to calculate fine
-    const [settingsData] = await db.select().from(settingsTable).limit(1);
+    // Get settings to calculate fine (use attendance date)
+    const attendanceDate = new Date(body.date);
+    const settingsData = await getAllSettingsForDate(attendanceDate);
 
     // Calculate remark and fine amount
     const statusForRemark =
@@ -226,14 +227,12 @@ export async function POST(request: NextRequest) {
 
     // Calculate fine based on remark
     let calculatedFine = "0";
-    if (settingsData) {
-      if (remark === "Unclosed") {
-        calculatedFine = settingsData.fineAmountUnclosed || "0";
-      } else if (remark === "Unopened") {
-        calculatedFine = settingsData.fineAmountUnopened || "0";
-      }
-      // "All Clear" or null means no fine
+    if (remark === "Unclosed") {
+      calculatedFine = settingsData.fineAmountUnclosed.toString();
+    } else if (remark === "Unopened") {
+      calculatedFine = settingsData.fineAmountUnopened.toString();
     }
+    // "All Clear" or null means no fine
 
     // Create attendance (remark is computed, not stored, but fine is stored)
     const [newAttendance] = await db

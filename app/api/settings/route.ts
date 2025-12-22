@@ -5,38 +5,22 @@ import { UpdateSettingsDto } from "@/lib/types/settings";
 import { sql, eq, gte } from "drizzle-orm";
 import { auditLog } from "@/lib/middleware/audit";
 import { notifyAllUsers } from "@/lib/utils/notifications";
+import { getCurrentSettings } from "@/lib/utils/settings-history";
 
 export async function GET(request: NextRequest) {
   try {
     // Allow both admins and regular users to read settings
     requireAuth(request);
 
-    // Get the single settings row (or create default if none exists)
-    let [settingsRow] = await db.select().from(settings).limit(1);
-
-    if (!settingsRow) {
-      // Create default settings
-      [settingsRow] = await db
-        .insert(settings)
-        .values({
-          closeTime: "18:00",
-          fineAmountUnclosed: "0",
-          fineAmountUnopened: "0",
-          guestMealAmount: "0",
-          monthlyExpensePerHead: "0",
-        })
-        .returning();
-    }
+    // Get current settings from the new normalized settings system
+    const currentSettings = await getCurrentSettings();
 
     return NextResponse.json({
-      id: settingsRow.id,
-      closeTime: settingsRow.closeTime,
-      fineAmountUnclosed: parseFloat(settingsRow.fineAmountUnclosed || "0"),
-      fineAmountUnopened: parseFloat(settingsRow.fineAmountUnopened || "0"),
-      guestMealAmount: parseFloat(settingsRow.guestMealAmount || "0"),
-      monthlyExpensePerHead: parseFloat(settingsRow.monthlyExpensePerHead || "0"),
-      createdAt: settingsRow.createdAt,
-      updatedAt: settingsRow.updatedAt,
+      closeTime: currentSettings.closeTime,
+      fineAmountUnclosed: currentSettings.fineAmountUnclosed,
+      fineAmountUnopened: currentSettings.fineAmountUnopened,
+      guestMealAmount: currentSettings.guestMealAmount,
+      monthlyExpensePerHead: currentSettings.monthlyExpensePerHead,
     });
   } catch (error: any) {
     if (error.message === "Unauthorized") {
@@ -160,117 +144,74 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // Get or create settings
-    let [existingSettings] = await db.select().from(settings).limit(1);
+    // Get current settings to check if values are changing
+    const currentSettings = await getCurrentSettings();
     
     // Track if guestMealAmount is changing
     const guestMealAmountChanged = 
       body.guestMealAmount !== undefined && 
-      existingSettings &&
-      parseFloat(existingSettings.guestMealAmount || "0") !== body.guestMealAmount;
+      currentSettings.guestMealAmount !== body.guestMealAmount;
     
     // Track if monthlyExpensePerHead is changing
     const monthlyExpensePerHeadChanged = 
       body.monthlyExpensePerHead !== undefined && 
-      existingSettings &&
-      parseFloat(existingSettings.monthlyExpensePerHead || "0") !== body.monthlyExpensePerHead;
+      currentSettings.monthlyExpensePerHead !== body.monthlyExpensePerHead;
     
     // Get today's date for updating future guests
     const today = new Date().toISOString().split("T")[0];
 
-    const updateData: any = {
-      updatedAt: new Date(),
-    };
-
-    if (body.closeTime !== undefined) {
-      updateData.closeTime = body.closeTime;
-    }
-    if (body.fineAmountUnclosed !== undefined) {
-      updateData.fineAmountUnclosed = body.fineAmountUnclosed.toString();
-    }
-    if (body.fineAmountUnopened !== undefined) {
-      updateData.fineAmountUnopened = body.fineAmountUnopened.toString();
-    }
-    if (body.guestMealAmount !== undefined) {
-      updateData.guestMealAmount = body.guestMealAmount.toString();
-    }
-    if (body.monthlyExpensePerHead !== undefined) {
-      updateData.monthlyExpensePerHead = body.monthlyExpensePerHead.toString();
-    }
-
-    let updatedSettings;
-    if (existingSettings) {
-      [updatedSettings] = await db
-        .update(settings)
-        .set(updateData)
-        .where(sql`1=1`) // Update the single row
-        .returning();
-    } else {
-      [updatedSettings] = await db
-        .insert(settings)
-        .values({
-          closeTime: body.closeTime || "18:00",
-          fineAmountUnclosed: (body.fineAmountUnclosed || 0).toString(),
-          fineAmountUnopened: (body.fineAmountUnopened || 0).toString(),
-          guestMealAmount: (body.guestMealAmount || 0).toString(),
-          monthlyExpensePerHead: (body.monthlyExpensePerHead || 0).toString(),
-        })
-        .returning();
-    }
-
     // Create settings history entries for changed settings
     const historyEntries: Array<{
-      settingType: string;
-      value: string;
-      effectiveDate: string;
+      settingKey: string;
+      value: unknown;
+      effectiveFrom: string;
+      createdBy: string;
     }> = [];
 
     if (body.fineAmountUnclosed !== undefined && body.fineAmountUnclosedEffectiveDate) {
       historyEntries.push({
-        settingType: "fine_amount_unclosed",
-        value: body.fineAmountUnclosed.toString(),
-        effectiveDate: body.fineAmountUnclosedEffectiveDate,
+        settingKey: "fine_amount_unclosed",
+        value: body.fineAmountUnclosed,
+        effectiveFrom: body.fineAmountUnclosedEffectiveDate,
+        createdBy: admin.id,
       });
     }
     if (body.fineAmountUnopened !== undefined && body.fineAmountUnopenedEffectiveDate) {
       historyEntries.push({
-        settingType: "fine_amount_unopened",
-        value: body.fineAmountUnopened.toString(),
-        effectiveDate: body.fineAmountUnopenedEffectiveDate,
+        settingKey: "fine_amount_unopened",
+        value: body.fineAmountUnopened,
+        effectiveFrom: body.fineAmountUnopenedEffectiveDate,
+        createdBy: admin.id,
       });
     }
     if (body.guestMealAmount !== undefined && body.guestMealAmountEffectiveDate) {
       historyEntries.push({
-        settingType: "guest_meal_amount",
-        value: body.guestMealAmount.toString(),
-        effectiveDate: body.guestMealAmountEffectiveDate,
+        settingKey: "guest_meal_amount",
+        value: body.guestMealAmount,
+        effectiveFrom: body.guestMealAmountEffectiveDate,
+        createdBy: admin.id,
       });
     }
     if (body.monthlyExpensePerHead !== undefined && body.monthlyExpensePerHeadEffectiveDate) {
       historyEntries.push({
-        settingType: "monthly_expense_per_head",
-        value: body.monthlyExpensePerHead.toString(),
-        effectiveDate: body.monthlyExpensePerHeadEffectiveDate,
+        settingKey: "monthly_expense_per_head",
+        value: body.monthlyExpensePerHead,
+        effectiveFrom: body.monthlyExpensePerHeadEffectiveDate,
+        createdBy: admin.id,
       });
     }
     if (body.closeTime !== undefined && body.closeTimeEffectiveDate) {
       historyEntries.push({
-        settingType: "close_time",
+        settingKey: "close_time",
         value: body.closeTime,
-        effectiveDate: body.closeTimeEffectiveDate,
+        effectiveFrom: body.closeTimeEffectiveDate,
+        createdBy: admin.id,
       });
     }
 
     // Insert settings history entries
     if (historyEntries.length > 0) {
-      await db.insert(settingsHistory).values(
-        historyEntries.map((entry) => ({
-          settingType: entry.settingType,
-          value: entry.value,
-          effectiveDate: entry.effectiveDate,
-          createdBy: admin.id,
-        }))
-      );
+      await db.insert(settingsHistory).values(historyEntries);
     }
 
     // If guestMealAmount changed, update future guests only (from effective date onward)
@@ -286,34 +227,34 @@ export async function PATCH(request: NextRequest) {
 
     // Notify users about settings changes
     const changes: string[] = [];
-    if (body.fineAmountUnclosed !== undefined && existingSettings) {
-      const oldValue = parseFloat(existingSettings.fineAmountUnclosed || "0");
+    if (body.fineAmountUnclosed !== undefined) {
+      const oldValue = currentSettings.fineAmountUnclosed;
       const newValue = body.fineAmountUnclosed;
       if (oldValue !== newValue) {
         changes.push(`Fine for unclosed meals: Rs ${oldValue.toFixed(2)} → Rs ${newValue.toFixed(2)}`);
       }
     }
-    if (body.fineAmountUnopened !== undefined && existingSettings) {
-      const oldValue = parseFloat(existingSettings.fineAmountUnopened || "0");
+    if (body.fineAmountUnopened !== undefined) {
+      const oldValue = currentSettings.fineAmountUnopened;
       const newValue = body.fineAmountUnopened;
       if (oldValue !== newValue) {
         changes.push(`Fine for unopened meals: Rs ${oldValue.toFixed(2)} → Rs ${newValue.toFixed(2)}`);
       }
     }
-    if (body.guestMealAmount !== undefined && existingSettings) {
-      const oldValue = parseFloat(existingSettings.guestMealAmount || "0");
+    if (body.guestMealAmount !== undefined) {
+      const oldValue = currentSettings.guestMealAmount;
       const newValue = body.guestMealAmount;
       if (oldValue !== newValue) {
         changes.push(`Guest meal amount: Rs ${oldValue.toFixed(2)} → Rs ${newValue.toFixed(2)}`);
       }
     }
     if (monthlyExpensePerHeadChanged && body.monthlyExpensePerHead !== undefined) {
-      const oldValue = parseFloat(existingSettings.monthlyExpensePerHead || "0");
+      const oldValue = currentSettings.monthlyExpensePerHead;
       const newValue = body.monthlyExpensePerHead;
       changes.push(`Monthly base expense: Rs ${oldValue.toFixed(2)} → Rs ${newValue.toFixed(2)}`);
     }
-    if (body.closeTime !== undefined && existingSettings) {
-      const oldValue = existingSettings.closeTime;
+    if (body.closeTime !== undefined) {
+      const oldValue = currentSettings.closeTime;
       const newValue = body.closeTime;
       if (oldValue !== newValue) {
         changes.push(`Meal close time: ${oldValue} → ${newValue}`);
@@ -329,22 +270,21 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
-    // Create audit log
-    await auditLog(admin, "UPDATE_SETTINGS", "settings", updatedSettings.id, {
-      updatedFields: Object.keys(updateData),
+    // Create audit log (use a placeholder ID since we're not storing in settings table anymore)
+    await auditLog(admin, "UPDATE_SETTINGS", "settings", undefined, {
       guestMealAmountChanged,
       monthlyExpensePerHeadChanged,
+      changes,
     });
 
+    // Return current settings after update
+    const finalSettings = await getCurrentSettings();
     return NextResponse.json({
-      id: updatedSettings.id,
-      closeTime: updatedSettings.closeTime,
-      fineAmountUnclosed: parseFloat(updatedSettings.fineAmountUnclosed || "0"),
-      fineAmountUnopened: parseFloat(updatedSettings.fineAmountUnopened || "0"),
-      guestMealAmount: parseFloat(updatedSettings.guestMealAmount || "0"),
-      monthlyExpensePerHead: parseFloat(updatedSettings.monthlyExpensePerHead || "0"),
-      createdAt: updatedSettings.createdAt,
-      updatedAt: updatedSettings.updatedAt,
+      closeTime: finalSettings.closeTime,
+      fineAmountUnclosed: finalSettings.fineAmountUnclosed,
+      fineAmountUnopened: finalSettings.fineAmountUnopened,
+      guestMealAmount: finalSettings.guestMealAmount,
+      monthlyExpensePerHead: finalSettings.monthlyExpensePerHead,
     });
   } catch (error: any) {
     if (error.message === "Unauthorized") {

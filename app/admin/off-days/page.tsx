@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { OffDay, CreateOffDayDto, UpdateOffDayDto } from "@/lib/types/off-days";
+import { OffDay, CreateOffDayDto } from "@/lib/types/off-days";
 import {
   getOffDays,
   createOffDay,
@@ -26,13 +26,15 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2, Calendar } from "lucide-react";
+import { Calendar, AlertCircle, CheckCircle2, Plus, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export function OffDaysManager() {
-  const { user: currentUser } = useAuth();
+export default function OffDaysPage() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [offDays, setOffDays] = useState<OffDay[]>([]);
   const [formModalOpen, setFormModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -46,13 +48,13 @@ export function OffDaysManager() {
   });
 
   const loadOffDays = async () => {
-    if (!currentUser) return;
+    if (!user) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const data = await getOffDays(currentUser);
+      const data = await getOffDays(user);
       setOffDays(data);
     } catch (err: any) {
       setError(err.message || "Failed to load off days");
@@ -63,7 +65,7 @@ export function OffDaysManager() {
 
   useEffect(() => {
     loadOffDays();
-  }, [currentUser]);
+  }, [user]);
 
   const handleCreate = () => {
     setSelectedOffDay(null);
@@ -86,14 +88,16 @@ export function OffDaysManager() {
   };
 
   const handleDeleteConfirm = async () => {
-    if (!offDayToDelete || !currentUser) return;
+    if (!offDayToDelete || !user) return;
 
     setDeleting(true);
     try {
-      await deleteOffDay(offDayToDelete.id, currentUser);
+      await deleteOffDay(offDayToDelete.id, user);
       await loadOffDays();
       setDeleteModalOpen(false);
       setOffDayToDelete(null);
+      setSuccess("Off day deleted successfully");
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       setError(err.message || "Failed to delete off day");
     } finally {
@@ -108,11 +112,12 @@ export function OffDaysManager() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser) return;
+    if (!user) return;
 
     // Validate reason (1-3 words)
     if (!validateReason(formData.reason)) {
       setError("Reason must be 1 to 3 words only");
+      setTimeout(() => setError(null), 3000);
       return;
     }
 
@@ -122,15 +127,18 @@ export function OffDaysManager() {
     try {
       if (selectedOffDay) {
         // Update existing
-        await updateOffDay(selectedOffDay.id, formData, currentUser);
+        await updateOffDay(selectedOffDay.id, formData, user);
+        setSuccess("Off day updated successfully");
       } else {
         // Create new
-        await createOffDay(formData, currentUser);
+        await createOffDay(formData, user);
+        setSuccess("Off day created successfully");
       }
       await loadOffDays();
       setFormModalOpen(false);
       setSelectedOffDay(null);
       setFormData({ date: "", reason: "" });
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       setError(err.message || "Failed to save off day");
     } finally {
@@ -166,45 +174,64 @@ export function OffDaysManager() {
 
   if (loading) {
     return (
-      <div className="space-y-3">
-        <div className="flex justify-between items-center">
-          <div className="h-6 w-32 bg-muted animate-pulse rounded" />
-          <div className="h-9 w-24 bg-muted animate-pulse rounded-full" />
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-96 max-w-full" />
         </div>
-        <div className="border rounded-lg">
-          <div className="h-12 bg-muted/50" />
-          <div className="h-16 bg-muted/30" />
-          <div className="h-16 bg-muted/30" />
-        </div>
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {error && (
-        <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
-          {error}
-        </div>
-      )}
-
-      <div className="flex justify-between items-center">
-        <div>
-          <h3 className="font-medium">Off Days</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Manage dates when meals are not available with clarification text
+    <div className="space-y-6">
+      {/* Header and Actions */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Calendar className="h-6 w-6 text-primary" />
+            Off Days Management
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Manage holidays and off days when meals are not available. These dates will be excluded from attendance calculations.
           </p>
+          {offDays.length > 0 && (
+            <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
+              <span>
+                Total: <span className="font-semibold text-foreground">{offDays.length}</span> off day{offDays.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+          )}
         </div>
         <Button
           onClick={handleCreate}
-          className="rounded-full"
-          size="sm"
+          className="rounded-full w-full sm:w-auto"
         >
-          <Plus className="h-4 w-4 mr-1" />
+          <Plus className="mr-2 h-4 w-4" />
           Add Off Day
         </Button>
       </div>
 
+      {/* Success Message */}
+      {success && (
+        <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 p-4 flex items-center gap-3 animate-in slide-in-from-top-2">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+            {success}
+          </p>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error && (
+        <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4 flex items-center gap-3 animate-in slide-in-from-top-2">
+          <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
+          <p className="text-sm font-medium text-destructive">{error}</p>
+        </div>
+      )}
+
+      {/* Off Days Table */}
       {offDays.length === 0 ? (
         <div className="border rounded-lg p-8 text-center">
           <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
