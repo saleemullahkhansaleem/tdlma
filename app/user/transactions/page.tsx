@@ -131,6 +131,20 @@ export default function UserTransactionsPage() {
     }
   };
 
+  const getDisplayType = (type: string, description: string | null): string => {
+    // For "reduced" type transactions, check description to determine specific type
+    if (type === "reduced" && description) {
+      if (description.toLowerCase().includes("fine")) {
+        return "Fine";
+      }
+      if (description.toLowerCase().includes("guest expense")) {
+        return "Guest Meal";
+      }
+    }
+    // For other types, capitalize first letter
+    return type.charAt(0).toUpperCase() + type.slice(1);
+  };
+
   const formatAmount = (amount: number, type: string) => {
     const sign = type === "paid" ? "+" : "-";
     return `${sign}Rs ${Math.abs(amount).toFixed(2)}`;
@@ -312,7 +326,7 @@ export default function UserTransactionsPage() {
                         </TableCell>
                         <TableCell>
                           <Badge variant={getTypeBadgeVariant(txn.type)}>
-                            {txn.type.charAt(0).toUpperCase() + txn.type.slice(1)}
+                            {getDisplayType(txn.type, txn.description)}
                           </Badge>
                         </TableCell>
                         <TableCell className="max-w-md">

@@ -9,9 +9,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Bell, CheckCircle2 } from "lucide-react";
 import { Notification } from "@/lib/types/notification";
 import { formatDistanceToNow } from "date-fns";
+import { useRouter } from "next/navigation";
+import { getNotificationRoute } from "@/lib/utils/notification-routes";
 
 export default function AdminNotificationsPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -142,52 +145,69 @@ export default function AdminNotificationsPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`p-4 rounded-lg border transition-colors ${
-                    !notification.read
-                      ? "bg-primary/5 border-primary/20"
-                      : "bg-muted/30 border-border"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3 flex-1">
-                      {!notification.read && (
-                        <div className="h-2 w-2 rounded-full bg-primary mt-2 shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-semibold text-sm">{notification.title}</p>
-                          {!notification.read && (
-                            <Badge variant="soft" className="text-xs">
-                              New
-                            </Badge>
-                          )}
+              {notifications.map((notification) => {
+                const route = user ? getNotificationRoute(notification.type, user.role) : null;
+                return (
+                  <div
+                    key={notification.id}
+                    className={`p-4 rounded-lg border transition-colors ${
+                      !notification.read
+                        ? "bg-primary/5 border-primary/20"
+                        : "bg-muted/30 border-border"
+                    } ${route ? "cursor-pointer hover:shadow-md" : ""}`}
+                    onClick={async () => {
+                      // Mark as read if unread
+                      if (!notification.read) {
+                        await markAsRead(notification.id);
+                      }
+                      
+                      // Navigate if route exists
+                      if (route) {
+                        router.push(route);
+                      }
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3 flex-1">
+                        {!notification.read && (
+                          <div className="h-2 w-2 rounded-full bg-primary mt-2 shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-semibold text-sm">{notification.title}</p>
+                            {!notification.read && (
+                              <Badge variant="soft" className="text-xs">
+                                New
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {notification.message}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {formatDistanceToNow(new Date(notification.createdAt), {
+                              addSuffix: true,
+                            })}
+                          </p>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {formatDistanceToNow(new Date(notification.createdAt), {
-                            addSuffix: true,
-                          })}
-                        </p>
                       </div>
+                      {!notification.read && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            await markAsRead(notification.id);
+                          }}
+                          className="shrink-0"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
-                    {!notification.read && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => markAsRead(notification.id)}
-                        className="shrink-0"
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                      </Button>
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

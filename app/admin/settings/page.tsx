@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth-context";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, CheckCircle2, Loader2, Settings as SettingsIcon, History, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Settings as SettingsIcon, History, ChevronDown, ChevronUp, Calendar, Clock, User } from "lucide-react";
 import { SettingsHistoryView } from "@/components/admin/settings-history-view";
+import { Badge } from "@/components/ui/badge";
 
 interface SettingType {
   key: string;
@@ -24,6 +25,28 @@ interface FieldState {
   saving: boolean;
 }
 
+interface CurrentSetting {
+  key: string;
+  description: string;
+  unit: string | null;
+  valueType: string;
+  currentValue: string | number | boolean;
+  effectiveFrom: string | null;
+  lastUpdated: string | null;
+  updatedBy: string | null;
+}
+
+interface UpcomingSetting {
+  key: string;
+  description: string;
+  unit: string | null;
+  valueType: string;
+  newValue: string | number | boolean;
+  effectiveFrom: string;
+  createdBy: string | null;
+  createdAt: string;
+}
+
 export default function SettingsPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -33,6 +56,9 @@ export default function SettingsPage() {
   const [fieldStates, setFieldStates] = useState<Record<string, FieldState>>({});
   const [mounted, setMounted] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [currentSettings, setCurrentSettings] = useState<CurrentSetting[]>([]);
+  const [upcomingSettings, setUpcomingSettings] = useState<UpcomingSetting[]>([]);
+  const [loadingCurrent, setLoadingCurrent] = useState(true);
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
     settingKey: string | null;
@@ -54,8 +80,15 @@ export default function SettingsPage() {
   useEffect(() => {
     if (mounted && user) {
       loadSettingsTypes();
+      loadCurrentSettings();
     }
   }, [user, mounted]);
+
+  useEffect(() => {
+    if (mounted && user && !loading) {
+      loadCurrentSettings();
+    }
+  }, [loading, mounted, user]);
 
   const loadSettingsTypes = async () => {
     if (!user) return;
@@ -101,6 +134,37 @@ export default function SettingsPage() {
       setError(err.message || "Failed to load settings");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCurrentSettings = async () => {
+    if (!user) return;
+
+    setLoadingCurrent(true);
+    try {
+      const response = await fetch("/api/settings/current", {
+        headers: {
+          "x-user-id": user.id,
+          "x-user-email": user.email,
+          "x-user-name": user.name,
+          "x-user-role": user.role,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to load current settings (${response.status})`);
+      }
+
+      const data = await response.json();
+      setCurrentSettings(data.current || []);
+      setUpcomingSettings(data.upcoming || []);
+    } catch (err: any) {
+      console.error("Failed to load current settings:", err);
+      // Don't show error to user, just log it
+    } finally {
+      setLoadingCurrent(false);
     }
   };
 
@@ -189,6 +253,8 @@ export default function SettingsPage() {
 
       // Reload settings types to get updated current values
       await loadSettingsTypes();
+      // Reload current settings to show updated effective dates
+      await loadCurrentSettings();
 
       const settingType = settingsTypes.find((t) => t.key === settingKey);
       setSuccess({
@@ -341,6 +407,174 @@ export default function SettingsPage() {
           <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
           <p className="text-sm font-medium text-destructive">{error}</p>
         </div>
+      )}
+
+      {/* Currently Applied Settings */}
+      <Card className="border-2">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            Currently Applied Settings
+          </CardTitle>
+          <CardDescription>
+            These are the settings currently in effect. All values are active as of today.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadingCurrent ? (
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-6 w-24" />
+                  <Skeleton className="h-3 w-40" />
+                </div>
+              ))}
+            </div>
+          ) : currentSettings.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No settings found
+            </p>
+          ) : (
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {currentSettings.map((setting) => {
+                const unit = setting.unit ? ` ${setting.unit}` : "";
+                let displayValue = String(setting.currentValue);
+                
+                if (setting.valueType === "number") {
+                  displayValue = `${setting.unit || ""} ${parseFloat(String(setting.currentValue)).toFixed(2)}`.trim();
+                } else if (setting.valueType === "boolean") {
+                  displayValue = setting.currentValue === true || setting.currentValue === "true" ? "Enabled" : "Disabled";
+                }
+
+                return (
+                  <div
+                    key={setting.key}
+                    className="rounded-lg border bg-card p-4 space-y-2 hover:shadow-sm transition-shadow"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-sm mb-1">
+                          {setting.key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                        </h4>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          {setting.description}
+                        </p>
+                      </div>
+                      <Badge variant="default" className="shrink-0">
+                        Active
+                      </Badge>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-bold">{displayValue}</span>
+                      </div>
+                      {setting.effectiveFrom && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          <span>
+                            Effective from: {new Date(setting.effectiveFrom).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                        </div>
+                      )}
+                      {setting.updatedBy && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <User className="h-3 w-3" />
+                          <span>Updated by: {setting.updatedBy}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Upcoming Settings Changes */}
+      {upcomingSettings.length > 0 && (
+        <Card className="border-2 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/10">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              Upcoming Settings Changes
+            </CardTitle>
+            <CardDescription>
+              These settings will take effect on the specified dates. Changes are scheduled and will be applied automatically.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {upcomingSettings.map((setting) => {
+                const unit = setting.unit ? ` ${setting.unit}` : "";
+                let displayValue = String(setting.newValue);
+                
+                if (setting.valueType === "number") {
+                  displayValue = `${setting.unit || ""} ${parseFloat(String(setting.newValue)).toFixed(2)}`.trim();
+                } else if (setting.valueType === "boolean") {
+                  displayValue = setting.newValue === true || setting.newValue === "true" ? "Enabled" : "Disabled";
+                }
+
+                const effectiveDate = new Date(setting.effectiveFrom);
+                const today = new Date();
+                const daysUntil = Math.ceil((effectiveDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+                return (
+                  <div
+                    key={setting.key}
+                    className="rounded-lg border-2 border-amber-200 dark:border-amber-800 bg-card p-4 space-y-2 hover:shadow-sm transition-shadow"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-sm mb-1">
+                          {setting.key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                        </h4>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          {setting.description}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="shrink-0 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300">
+                        Scheduled
+                      </Badge>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">New value:</span>
+                        <span className="text-lg font-bold">{displayValue}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300 font-medium">
+                        <Calendar className="h-3 w-3" />
+                        <span>
+                          Effective from: {effectiveDate.toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </span>
+                      </div>
+                      {daysUntil > 0 && (
+                        <div className="text-xs text-muted-foreground">
+                          {daysUntil === 1 ? "Tomorrow" : `In ${daysUntil} days`}
+                        </div>
+                      )}
+                      {setting.createdBy && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <User className="h-3 w-3" />
+                          <span>Created by: {setting.createdBy}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Settings Grid */}

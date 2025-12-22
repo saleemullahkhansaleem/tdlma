@@ -337,14 +337,14 @@ export function FeedbackResponseModal({
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-2">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={loading}
             className="rounded-full"
           >
-            <X className="h-4 w-4 mr-2" />
+            <X className="h-4 w-4" />
             Cancel
           </Button>
           <Button
@@ -354,12 +354,12 @@ export function FeedbackResponseModal({
           >
             {loading ? (
               <>
-                <Clock className="h-4 w-4 mr-2 animate-spin" />
+                <Clock className="h-4 w-4 animate-spin" />
                 Saving...
               </>
             ) : (
               <>
-                <Save className="h-4 w-4 mr-2" />
+                <Save className="h-4 w-4" />
                 Save Response
               </>
             )}

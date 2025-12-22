@@ -63,6 +63,8 @@ export default function UserProfilePage() {
     confirmPassword: "",
   });
   const [sendingVerification, setSendingVerification] = useState(false);
+  const [verificationDialogOpen, setVerificationDialogOpen] = useState(false);
+  const [verificationEmailSent, setVerificationEmailSent] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -117,7 +119,7 @@ export default function UserProfilePage() {
     }
   };
 
-  const handleResendVerification = async () => {
+  const handleSendVerificationEmail = async () => {
     if (!currentUser) return;
 
     setSendingVerification(true);
@@ -142,9 +144,40 @@ export default function UserProfilePage() {
         throw new Error(data.error || "Failed to send verification email");
       }
 
+      setVerificationEmailSent(true);
+    } catch (err: any) {
+      setError(err.message || "Failed to send verification email");
+    } finally {
+      setSendingVerification(false);
+    }
+  };
+
+  const handleResendVerificationEmail = async () => {
+    if (!currentUser) return;
+
+    setSendingVerification(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/auth/send-verification", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": currentUser.id,
+          "x-user-email": currentUser.email,
+          "x-user-name": currentUser.name,
+          "x-user-role": currentUser.role,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to send verification email");
+      }
+
       setSuccess(data.message || "Verification email sent successfully");
-      // Reload profile to get updated verification status
-      loadProfile();
+      setTimeout(() => setSuccess(null), 5000);
     } catch (err: any) {
       setError(err.message || "Failed to send verification email");
     } finally {
@@ -435,28 +468,6 @@ export default function UserProfilePage() {
                     <label className="text-sm font-medium flex items-center gap-2">
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       Email
-                      {profile.emailVerified !== undefined && (
-                        <Badge
-                          variant={profile.emailVerified ? "default" : "outline"}
-                          className={
-                            profile.emailVerified
-                              ? "bg-green-500 hover:bg-green-600 text-white"
-                              : "bg-yellow-500 hover:bg-yellow-600 text-white"
-                          }
-                        >
-                          {profile.emailVerified ? (
-                            <>
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Verified
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="h-3 w-3 mr-1" />
-                              Unverified
-                            </>
-                          )}
-                        </Badge>
-                      )}
                     </label>
                     {editMode ? (
                       <Input
@@ -476,22 +487,15 @@ export default function UserProfilePage() {
                         {profile.emailVerified === false && (
                           <Button
                             variant="outline"
-                            size="sm"
-                            onClick={handleResendVerification}
-                            disabled={sendingVerification}
+                            size="default"
+                            onClick={() => {
+                              setVerificationDialogOpen(true);
+                              setVerificationEmailSent(false);
+                            }}
                             className="rounded-full"
                           >
-                            {sendingVerification ? (
-                              <>
-                                <Clock className="h-3 w-3 mr-1 animate-spin" />
-                                Sending...
-                              </>
-                            ) : (
-                              <>
-                                <Mail className="h-3 w-3 mr-1" />
-                                Resend
-                              </>
-                            )}
+                            <Mail className="h-3 w-3 mr-1" />
+                            Verify
                           </Button>
                         )}
                       </div>
@@ -583,6 +587,131 @@ export default function UserProfilePage() {
             </Card>
           </div>
         )}
+
+        {/* Email Verification Dialog */}
+        <Dialog open={verificationDialogOpen} onOpenChange={setVerificationDialogOpen}>
+          <DialogContent className="sm:max-w-md rounded-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Verify Your Email
+              </DialogTitle>
+              <DialogDescription>
+                {verificationEmailSent
+                  ? "We've sent a verification link to your email address."
+                  : "Send a verification link to your email address to verify your account."}
+              </DialogDescription>
+            </DialogHeader>
+
+            {!verificationEmailSent ? (
+              <>
+                <div className="py-4">
+                  <div className="rounded-lg border border-muted bg-muted/30 p-4">
+                    <p className="text-sm text-muted-foreground">
+                      Click the button below to send a verification link to{" "}
+                      <span className="font-medium text-foreground">
+                        {profile?.email}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <DialogFooter className="gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setVerificationDialogOpen(false);
+                      setVerificationEmailSent(false);
+                    }}
+                    className="rounded-full"
+                    disabled={sendingVerification}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSendVerificationEmail}
+                    disabled={sendingVerification}
+                    className="rounded-full"
+                  >
+                    {sendingVerification ? (
+                      <>
+                        <Clock className="mr-2 h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="mr-2 h-4 w-4" />
+                        Send Verification Link
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </>
+            ) : (
+              <>
+                <div className="py-4 space-y-4">
+                  <div className="rounded-lg border border-green-500/20 bg-green-500/10 p-4">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                          Verification email sent!
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Please check your inbox at{" "}
+                          <span className="font-medium text-foreground">
+                            {profile?.email}
+                          </span>{" "}
+                          and click the verification link to verify your email address.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-muted bg-muted/30 p-4">
+                    <p className="text-sm font-medium mb-2">What to do next:</p>
+                    <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                      <li>Check your email inbox (and spam folder if needed)</li>
+                      <li>Click on the verification link in the email</li>
+                      <li>Your email will be verified automatically</li>
+                      <li>Refresh this page to see the updated status</li>
+                    </ol>
+                  </div>
+                </div>
+
+                <DialogFooter className="gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setVerificationDialogOpen(false);
+                      setVerificationEmailSent(false);
+                    }}
+                    className="rounded-full"
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    onClick={handleResendVerificationEmail}
+                    disabled={sendingVerification}
+                    className="rounded-full"
+                  >
+                    {sendingVerification ? (
+                      <>
+                        <Clock className="mr-2 h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="mr-2 h-4 w-4" />
+                        Resend Email
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Change Password Dialog */}
         <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { DateRangeFilter } from "@/components/admin/date-range-filter";
 import { Search, CreditCard, Download } from "lucide-react";
 import {
@@ -210,6 +211,33 @@ export default function PaymentsPage() {
   const updatedDues = selectedUser
     ? Math.max(0, selectedUser.totalDues - (parseFloat(paymentAmount) || 0))
     : 0;
+
+  const getDisplayType = (type: string, description: string | null): string => {
+    // For "reduced" type transactions, check description to determine specific type
+    if (type === "reduced" && description) {
+      if (description.toLowerCase().includes("fine")) {
+        return "Fine";
+      }
+      if (description.toLowerCase().includes("guest expense")) {
+        return "Guest Meal";
+      }
+    }
+    // For other types, capitalize first letter
+    return type.charAt(0).toUpperCase() + type.slice(1);
+  };
+
+  const getTypeBadgeVariant = (type: string) => {
+    switch (type) {
+      case "paid":
+        return "success";
+      case "reduced":
+        return "soft";
+      case "waived":
+        return "outline";
+      default:
+        return "outline";
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -408,17 +436,9 @@ export default function PaymentsPage() {
                         Rs {txn.amount.toFixed(2)}
                       </TableCell>
                       <TableCell>
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-medium ${
-                            txn.type === "paid"
-                              ? "bg-green-100 text-green-800"
-                              : txn.type === "reduced"
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-yellow-100 text-yellow-800"
-                          }`}
-                        >
-                          {txn.type.charAt(0).toUpperCase() + txn.type.slice(1)}
-                        </span>
+                        <Badge variant={getTypeBadgeVariant(txn.type)}>
+                          {getDisplayType(txn.type, txn.description)}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         {txn.createdByUser ? txn.createdByUser.name : "Unknown"}

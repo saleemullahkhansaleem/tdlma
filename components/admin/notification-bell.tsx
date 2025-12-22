@@ -13,9 +13,12 @@ import { Notification } from "@/lib/types/notification";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
+import { useRouter } from "next/navigation";
+import { getNotificationRoute } from "@/lib/utils/notification-routes";
 
 export function NotificationBell() {
   const { user } = useAuth();
+  const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -165,9 +168,19 @@ export function NotificationBell() {
                   className={`p-4 hover:bg-muted/50 transition-colors cursor-pointer ${
                     !notification.read ? "bg-primary/5" : ""
                   }`}
-                  onClick={() => {
+                  onClick={async () => {
+                    // Mark as read if unread
                     if (!notification.read) {
-                      markAsRead(notification.id);
+                      await markAsRead(notification.id);
+                    }
+                    
+                    // Get the route for this notification type
+                    const route = user ? getNotificationRoute(notification.type, user.role) : null;
+                    
+                    // Navigate if route exists
+                    if (route) {
+                      setOpen(false);
+                      router.push(route);
                     }
                   }}
                 >
