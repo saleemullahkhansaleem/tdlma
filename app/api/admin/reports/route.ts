@@ -218,7 +218,9 @@ export async function GET(request: NextRequest) {
             : null;
         const remark = calculateRemark(attendanceStatus, isOpen);
 
-        // Use current settings for fine amounts (much faster than querying for each date)
+        // Calculate fine based on remark (authoritative source)
+        // Don't add fineAmount field as it may already contain the remark-based fine
+        // and would cause double counting
         if (remark === "Unclosed") {
           userTotalUnclosed++;
           userTotalFine += currentSettings.fineAmountUnclosed;
@@ -226,9 +228,16 @@ export async function GET(request: NextRequest) {
           userTotalUnopened++;
           userTotalFine += currentSettings.fineAmountUnopened;
         }
-
-        // Add existing fine amount
-        userTotalFine += parseFloat(att.fineAmount || "0");
+        
+        // Only add fineAmount if it's higher than the calculated fine (handles manually adjusted fines)
+        // This ensures we don't double count but also capture any manual adjustments
+        const calculatedFine = remark === "Unclosed" ? currentSettings.fineAmountUnclosed :
+                               remark === "Unopened" ? currentSettings.fineAmountUnopened : 0;
+        const storedFine = parseFloat(att.fineAmount || "0");
+        if (storedFine > calculatedFine) {
+          // Manual fine is higher than calculated, add the difference
+          userTotalFine += (storedFine - calculatedFine);
+        }
       }
 
       // Calculate guest stats (only for active days)

@@ -276,12 +276,22 @@ export async function GET(request: NextRequest) {
               att.status === "Present" || att.status === "Absent" ? att.status : null;
             const remark = calculateRemark(statusForRemark, isOpen);
 
+            // Calculate fine based on remark (authoritative source)
+            let calculatedFine = 0;
             if (remark === "Unclosed") {
-              userFines += monthSettings.fineAmountUnclosed;
+              calculatedFine = monthSettings.fineAmountUnclosed;
+              userFines += calculatedFine;
             } else if (remark === "Unopened") {
-              userFines += monthSettings.fineAmountUnopened;
+              calculatedFine = monthSettings.fineAmountUnopened;
+              userFines += calculatedFine;
             }
-            userFines += parseFloat(att.fineAmount || "0");
+            
+            // Only add fineAmount if it's higher than calculated fine (handles manually adjusted fines)
+            const storedFine = parseFloat(att.fineAmount || "0");
+            if (storedFine > calculatedFine) {
+              // Manual fine is higher than calculated, add the difference
+              userFines += (storedFine - calculatedFine);
+            }
           }
         }
         totalFinesCurrentMonth += userFines;
