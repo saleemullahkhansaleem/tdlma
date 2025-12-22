@@ -7,7 +7,9 @@ import {
 } from "@/lib/db";
 import { requireAuth } from "@/lib/middleware/auth";
 import { eq, and, gte, lte } from "drizzle-orm";
-import { getSetting } from "@/lib/utils/settings-history";
+import { getAllSettingsForDate } from "@/lib/utils/settings-history";
+import { calculateActiveDays } from "@/lib/utils/active-days";
+import { calculateRemark } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,10 +44,44 @@ export async function GET(request: NextRequest) {
     }
 
     // Get monthly expense per head from new normalized settings system
-    // Use the middle of the month to get the setting that applies for that month
+    // Try to get settings for the month, fallback to today's settings if not found
     const monthMiddle = new Date(year, month - 1, 15);
-    const monthlyExpensePerHeadStr = await getSetting("monthly_expense_per_head", monthMiddle);
-    const monthlyExpense = parseFloat(monthlyExpensePerHeadStr || "0");
+    const monthSettings = await getAllSettingsForDate(monthMiddle);
+    let monthlyExpensePerHead = monthSettings.monthlyExpensePerHead;
+    
+    // If monthly expense is 0, try to get from today's settings as fallback
+    // This handles cases where settings history might not have entries for the month
+    if (monthlyExpensePerHead === 0) {
+      const todaySettings = await getAllSettingsForDate(today);
+      monthlyExpensePerHead = todaySettings.monthlyExpensePerHead;
+      console.log("Using today's settings as fallback:", { monthlyExpensePerHead: todaySettings.monthlyExpensePerHead });
+    }
+    
+    // Calculate base expense based on user's active days in the month
+    // Calculate active days in the month (this handles user creation date and status automatically)
+    const userActiveDays = await calculateActiveDays(user.id, monthStart, monthEnd);
+    let baseExpense = 0;
+    
+    // Debug: Log values to help diagnose issues
+    console.log("User Dashboard Stats Debug:", {
+      userId: user.id,
+      userStatus: userData.status,
+      monthStart: monthStartStr,
+      monthEnd: monthEndStr,
+      monthlyExpensePerHead,
+      userActiveDays,
+      userCreatedAt: userData.createdAt,
+    });
+    
+    if (userActiveDays > 0 && monthlyExpensePerHead > 0) {
+      // Calculate daily base expense (monthly expense / 30 days)
+      const dailyBaseExpense = monthlyExpensePerHead / 30;
+      // Calculate base expense for this user based on their active days
+      baseExpense = dailyBaseExpense * userActiveDays;
+      console.log("Base expense calculated:", { dailyBaseExpense, baseExpense });
+    } else {
+      console.log("Base expense not calculated - userActiveDays:", userActiveDays, "monthlyExpensePerHead:", monthlyExpensePerHead);
+    }
     
     // For now, assume meal cost is 0 or we'll add it to settings later
     const mealCost = 0; // TODO: Add mealCost to settings
@@ -87,7 +123,8 @@ export async function GET(request: NextRequest) {
     );
 
     // Get fines for current month
-    const monthFines = await db
+    // Calculate fines based on remarks (Unclosed/Unopened) and settings
+    const monthAttendanceForFines = await db
       .select()
       .from(attendance)
       .where(
@@ -99,28 +136,75 @@ export async function GET(request: NextRequest) {
         )
       );
 
-    // Calculate total fines
-    const totalFines = monthFines.reduce(
-      (sum, att) => sum + parseFloat(att.fineAmount || "0"),
-      0
-    );
+    // Get fine amounts from settings (use month settings as approximation for all dates in month)
+    // This is faster than querying settings for each individual date
+    const fineSettings = monthSettings;
+    const fineAmountUnclosed = fineSettings.fineAmountUnclosed;
+    const fineAmountUnopened = fineSettings.fineAmountUnopened;
+
+    // Calculate total fines based on remarks and stored fine amounts
+    // Match the logic from admin dashboard-stats route
+    let totalFines = 0;
+    let unclosedCount = 0;
+    let unopenedCount = 0;
+    
+    for (const att of monthAttendanceForFines) {
+      const isOpen = att.isOpen ?? true;
+      const statusForRemark =
+        att.status === "Present" || att.status === "Absent"
+          ? att.status
+          : null;
+      const remark = calculateRemark(statusForRemark, isOpen);
+
+      // Add fine based on remark
+      if (remark === "Unclosed") {
+        totalFines += fineAmountUnclosed;
+        unclosedCount++;
+      } else if (remark === "Unopened") {
+        totalFines += fineAmountUnopened;
+        unopenedCount++;
+      }
+      
+      // Also add any manually set fine amount (from fineAmount field)
+      // This handles cases where admin manually set/adjusted fines
+      totalFines += parseFloat(att.fineAmount || "0");
+    }
+    
+    // Debug: Log fine calculation details
+    console.log("Fine calculation debug:", {
+      attendanceRecords: monthAttendanceForFines.length,
+      unclosedCount,
+      unopenedCount,
+      fineAmountUnclosed,
+      fineAmountUnopened,
+      totalFines,
+    });
 
     // Calculate total monthly expense
-    // monthlyExpense is already set from settings above
+    // baseExpense is calculated based on active days above
     const totalMonthlyExpense =
-      mealExpenses + guestExpenses + totalFines + monthlyExpense;
+      mealExpenses + guestExpenses + totalFines + baseExpense;
 
     return NextResponse.json({
       mealExpenses,
       guestExpenses,
       totalFines,
-      monthlyExpense,
+      monthlyExpense: baseExpense, // Return calculated base expense based on active days
       totalMonthlyExpense,
       month: {
         start: monthStartStr,
         end: monthEndStr,
         year: year,
         month: month,
+      },
+      // Debug info (remove in production if needed)
+      _debug: {
+        userStatus: userData.status,
+        monthlyExpensePerHead,
+        userActiveDays,
+        baseExpense,
+        totalFines,
+        attendanceRecordsForFines: monthAttendanceForFines.length,
       },
     });
   } catch (error: any) {

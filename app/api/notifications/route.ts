@@ -26,15 +26,22 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json(userNotifications);
     } catch (dbError: any) {
-      // Check if error is due to missing table
+      // Check if error is due to missing table or any database error
+      const errorMessage = dbError.message || dbError.toString() || "";
+      const errorCode = dbError.code || "";
+      
       if (
-        dbError.message?.includes("does not exist") ||
-        dbError.message?.includes("relation") ||
-        dbError.code === "42P01"
+        errorMessage.includes("does not exist") ||
+        errorMessage.includes("relation") ||
+        errorMessage.includes("Failed query") ||
+        errorCode === "42P01" ||
+        errorCode === "42703"
       ) {
-        console.warn("Notifications table does not exist yet. Run migrations first.");
+        console.warn("Notifications table error:", errorMessage);
+        // Return empty array instead of failing
         return NextResponse.json([]);
       }
+      // Re-throw other errors
       throw dbError;
     }
   } catch (error: any) {
