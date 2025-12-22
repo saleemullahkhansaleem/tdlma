@@ -54,7 +54,6 @@ export async function GET(request: NextRequest) {
     if (monthlyExpensePerHead === 0) {
       const todaySettings = await getAllSettingsForDate(today);
       monthlyExpensePerHead = todaySettings.monthlyExpensePerHead;
-      console.log("Using today's settings as fallback:", { monthlyExpensePerHead: todaySettings.monthlyExpensePerHead });
     }
     
     // Calculate base expense based on user's active days in the month
@@ -62,25 +61,11 @@ export async function GET(request: NextRequest) {
     const userActiveDays = await calculateActiveDays(user.id, monthStart, monthEnd);
     let baseExpense = 0;
     
-    // Debug: Log values to help diagnose issues
-    console.log("User Dashboard Stats Debug:", {
-      userId: user.id,
-      userStatus: userData.status,
-      monthStart: monthStartStr,
-      monthEnd: monthEndStr,
-      monthlyExpensePerHead,
-      userActiveDays,
-      userCreatedAt: userData.createdAt,
-    });
-    
     if (userActiveDays > 0 && monthlyExpensePerHead > 0) {
       // Calculate daily base expense (monthly expense / 30 days)
       const dailyBaseExpense = monthlyExpensePerHead / 30;
       // Calculate base expense for this user based on their active days
       baseExpense = dailyBaseExpense * userActiveDays;
-      console.log("Base expense calculated:", { dailyBaseExpense, baseExpense });
-    } else {
-      console.log("Base expense not calculated - userActiveDays:", userActiveDays, "monthlyExpensePerHead:", monthlyExpensePerHead);
     }
     
     // For now, assume meal cost is 0 or we'll add it to settings later
@@ -145,8 +130,6 @@ export async function GET(request: NextRequest) {
     // Calculate total fines based on remarks and stored fine amounts
     // Match the logic from admin dashboard-stats route
     let totalFines = 0;
-    let unclosedCount = 0;
-    let unopenedCount = 0;
     
     for (const att of monthAttendanceForFines) {
       const isOpen = att.isOpen ?? true;
@@ -159,26 +142,14 @@ export async function GET(request: NextRequest) {
       // Add fine based on remark
       if (remark === "Unclosed") {
         totalFines += fineAmountUnclosed;
-        unclosedCount++;
       } else if (remark === "Unopened") {
         totalFines += fineAmountUnopened;
-        unopenedCount++;
       }
       
       // Also add any manually set fine amount (from fineAmount field)
       // This handles cases where admin manually set/adjusted fines
       totalFines += parseFloat(att.fineAmount || "0");
     }
-    
-    // Debug: Log fine calculation details
-    console.log("Fine calculation debug:", {
-      attendanceRecords: monthAttendanceForFines.length,
-      unclosedCount,
-      unopenedCount,
-      fineAmountUnclosed,
-      fineAmountUnopened,
-      totalFines,
-    });
 
     // Calculate total monthly expense
     // baseExpense is calculated based on active days above
@@ -196,15 +167,6 @@ export async function GET(request: NextRequest) {
         end: monthEndStr,
         year: year,
         month: month,
-      },
-      // Debug info (remove in production if needed)
-      _debug: {
-        userStatus: userData.status,
-        monthlyExpensePerHead,
-        userActiveDays,
-        baseExpense,
-        totalFines,
-        attendanceRecordsForFines: monthAttendanceForFines.length,
       },
     });
   } catch (error: any) {
