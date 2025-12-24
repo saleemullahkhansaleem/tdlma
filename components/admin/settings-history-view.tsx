@@ -68,7 +68,7 @@ export function SettingsHistoryView() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
               <History className="h-5 w-5" />
@@ -79,7 +79,7 @@ export function SettingsHistoryView() {
             </CardDescription>
           </div>
           <Select value={selectedKey} onValueChange={setSelectedKey}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-full md:w-[200px]">
               <SelectValue placeholder="Filter by setting" />
             </SelectTrigger>
             <SelectContent>
@@ -110,52 +110,54 @@ export function SettingsHistoryView() {
             No settings history found
           </div>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Setting</TableHead>
-                  <TableHead>Value</TableHead>
-                  <TableHead>Effective From</TableHead>
-                  <TableHead>Effective To</TableHead>
-                  <TableHead>Changed By</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {history.map((entry) => (
-                  <TableRow
-                    key={entry.id}
-                    className={entry.isActive ? "bg-muted/50" : ""}
-                  >
-                    <TableCell className="font-medium">
-                      {entry.description}
-                    </TableCell>
-                    <TableCell>{formatValue(entry)}</TableCell>
-                    <TableCell>{formatDate(entry.effectiveFrom)}</TableCell>
-                    <TableCell>
-                      {entry.effectiveTo ? formatDate(entry.effectiveTo) : "—"}
-                    </TableCell>
-                    <TableCell>
-                      {entry.creatorName || entry.creatorEmail || "Unknown"}
-                    </TableCell>
-                    <TableCell>
-                      {entry.isActive ? (
-                        <Badge variant="default" className="gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Active
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="gap-1">
-                          <XCircle className="h-3 w-3" />
-                          Inactive
-                        </Badge>
-                      )}
-                    </TableCell>
+          <div className="rounded-md border overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[150px]">Setting</TableHead>
+                    <TableHead className="min-w-[100px]">Value</TableHead>
+                    <TableHead className="min-w-[120px]">Effective From</TableHead>
+                    <TableHead className="min-w-[120px]">Effective To</TableHead>
+                    <TableHead className="min-w-[120px]">Changed By</TableHead>
+                    <TableHead className="min-w-[100px]">Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {history.map((entry) => (
+                    <TableRow
+                      key={entry.id}
+                      className={entry.isActive ? "bg-muted/50" : ""}
+                    >
+                      <TableCell className="font-medium">
+                        {entry.description}
+                      </TableCell>
+                      <TableCell>{formatValue(entry)}</TableCell>
+                      <TableCell>{formatDate(entry.effectiveFrom)}</TableCell>
+                      <TableCell>
+                        {entry.effectiveTo ? formatDate(entry.effectiveTo) : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {entry.creatorName || entry.creatorEmail || "Unknown"}
+                      </TableCell>
+                      <TableCell>
+                        {entry.isActive ? (
+                          <Badge variant="default" className="gap-1">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Active
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="gap-1">
+                            <XCircle className="h-3 w-3" />
+                            Inactive
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
       </CardContent>

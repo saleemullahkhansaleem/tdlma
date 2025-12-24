@@ -116,7 +116,7 @@ export default function MarkAttendancePage() {
             Update attendance and add guests for the selected date
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Button
             className="rounded-full w-full sm:w-auto"
             onClick={() => setOpenGuest(true)}
@@ -124,7 +124,7 @@ export default function MarkAttendancePage() {
             <Plus className="h-4 w-4" />
             Add Guest
           </Button>
-          <Link href="/admin/guests">
+          <Link href="/admin/guests" className="w-full sm:w-auto">
             <Button
               variant="outline"
               className="rounded-full w-full sm:w-auto"

@@ -130,7 +130,7 @@ export default function AdminNotificationsPage() {
         <CardHeader>
           <CardTitle>Your Notifications</CardTitle>
         </CardHeader>
-        <CardContent className="p-6">
+        <CardContent className="p-4 sm:p-6">
           {loading ? (
             <div className="space-y-4">
               {[...Array(5)].map((_, i) => (
@@ -150,7 +150,7 @@ export default function AdminNotificationsPage() {
                 return (
                   <div
                     key={notification.id}
-                    className={`p-4 rounded-lg border transition-colors ${
+                    className={`p-3 sm:p-4 rounded-lg border transition-colors ${
                       !notification.read
                         ? "bg-primary/5 border-primary/20"
                         : "bg-muted/30 border-border"
@@ -167,21 +167,21 @@ export default function AdminNotificationsPage() {
                       }
                     }}
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3 flex-1">
+                    <div className="flex items-start justify-between gap-2 sm:gap-4">
+                      <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
                         {!notification.read && (
                           <div className="h-2 w-2 rounded-full bg-primary mt-2 shrink-0" />
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-semibold text-sm">{notification.title}</p>
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <p className="font-semibold text-sm break-words">{notification.title}</p>
                             {!notification.read && (
-                              <Badge variant="soft" className="text-xs">
+                              <Badge variant="soft" className="text-xs shrink-0">
                                 New
                               </Badge>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm text-muted-foreground break-words">
                             {notification.message}
                           </p>
                           <p className="text-xs text-muted-foreground mt-2">
