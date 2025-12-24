@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, users } from "@/lib/db";
 import { requireAdmin } from "@/lib/middleware/auth";
+import { checkAdminPermission } from "@/lib/utils/permissions";
 import { eq, and, or, inArray } from "drizzle-orm";
 import { sendNotification as sendNotificationUtil, notifyAllUsers, notifyAllAdmins } from "@/lib/utils/notifications";
 
@@ -14,7 +15,7 @@ export interface SendNotificationDto {
 
 export async function POST(request: NextRequest) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "send_notifications");
     const body: SendNotificationDto = await request.json();
 
     // Validate required fields

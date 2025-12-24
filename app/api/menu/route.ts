@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, menus } from "@/lib/db";
 import { requireAdmin, requireAuth } from "@/lib/middleware/auth";
+import { checkAdminPermission } from "@/lib/utils/permissions";
 import { CreateMenuDto } from "@/lib/types/menu";
 import { eq, and } from "drizzle-orm";
 import { notifyAllUsers } from "@/lib/utils/notifications";
 
 export async function POST(request: NextRequest) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "menu");
     const body: CreateMenuDto = await request.json();
 
     // Validate required fields

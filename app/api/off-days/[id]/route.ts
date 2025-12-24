@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, offDays } from "@/lib/db";
 import { requireAdmin } from "@/lib/middleware/auth";
+import { checkAdminPermission } from "@/lib/utils/permissions";
 import { UpdateOffDayDto } from "@/lib/types/off-days";
 import { eq } from "drizzle-orm";
 
@@ -9,7 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    requireAdmin(request);
+    await checkAdminPermission(request, "off_days");
     const { id } = await params;
 
     const [offDay] = await db
@@ -43,7 +44,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "off_days");
     const { id } = await params;
 
     let body: UpdateOffDayDto;
@@ -178,7 +179,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "off_days");
     const { id } = await params;
 
     // Check if off day exists

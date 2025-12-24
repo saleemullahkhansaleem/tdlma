@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, feedback, users } from "@/lib/db";
 import { requireAdmin } from "@/lib/middleware/auth";
+import { checkAdminPermission } from "@/lib/utils/permissions";
 import { eq, and, or, desc } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "feedback");
     const { searchParams } = new URL(request.url);
 
     const category = searchParams.get("category");

@@ -9,6 +9,7 @@ import {
   feedback,
 } from "@/lib/db";
 import { requireAdmin } from "@/lib/middleware/auth";
+import { checkAdminPermission } from "@/lib/utils/permissions";
 import { eq, and, sql, count, gte, lte, isNull, isNotNull, desc } from "drizzle-orm";
 import { calculateRemark } from "@/lib/utils";
 import { getAllSettingsForDate } from "@/lib/utils/settings-history";
@@ -16,7 +17,7 @@ import { calculateActiveDays, getActiveDateRange } from "@/lib/utils/active-days
 
 export async function GET(request: NextRequest) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "dashboard");
     const { searchParams } = new URL(request.url);
     const period = searchParams.get("period") || "today"; // today, week, month
 

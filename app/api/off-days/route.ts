@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, offDays } from "@/lib/db";
 import { requireAdmin, requireAuth } from "@/lib/middleware/auth";
+import { checkAdminPermission } from "@/lib/utils/permissions";
 import { CreateOffDayDto } from "@/lib/types/off-days";
 import { desc, eq } from "drizzle-orm";
 
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "off_days");
 
     let body: CreateOffDayDto;
     try {

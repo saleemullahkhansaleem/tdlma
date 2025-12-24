@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+import { useAdminPermissions } from "@/lib/hooks/use-admin-permissions";
 import { getDashboardStats, DashboardStats } from "@/lib/api/client";
 import { DashboardKPIs } from "@/components/admin/dashboard-kpis";
 import { DashboardFinancial } from "@/components/admin/dashboard-financial";
@@ -15,9 +17,20 @@ import { AlertCircle } from "lucide-react";
 
 export default function AdminDashboardPage() {
   const { user } = useAuth();
+  const router = useRouter();
+  const { hasPermission, loading: permissionsLoading, getAllowedModules, permissions } = useAdminPermissions();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!permissionsLoading && user) {
+      if (user.role === "admin" && !hasPermission("dashboard")) {
+        // Don't redirect, just show message
+        return;
+      }
+    }
+  }, [user, hasPermission, permissionsLoading, router]);
 
   useEffect(() => {
     loadStats();
@@ -39,7 +52,33 @@ export default function AdminDashboardPage() {
     }
   };
 
-  if (loading) {
+  // Show message if admin has no permissions
+  if (!permissionsLoading && user?.role === "admin" && permissions) {
+    const allowedModules = getAllowedModules();
+    if (allowedModules.length === 0) {
+      return (
+        <div className="space-y-6">
+          <Card className="border-yellow-500/20 bg-yellow-500/10">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-yellow-900 dark:text-yellow-100 mb-2">
+                    No Permissions Granted
+                  </h3>
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    You don't have access to any admin modules yet. Please contact the superadmin to grant you permissions.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+  }
+
+  if (loading || permissionsLoading) {
     return (
       <div className="space-y-6">
         <div className="space-y-1">

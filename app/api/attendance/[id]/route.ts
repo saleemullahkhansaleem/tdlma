@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, attendance } from "@/lib/db";
 import { requireAdmin, requireAuth } from "@/lib/middleware/auth";
+import { checkAdminPermission } from "@/lib/utils/permissions";
 import { UpdateAttendanceDto } from "@/lib/types/attendance";
 import { eq } from "drizzle-orm";
 import { calculateRemark } from "@/lib/utils";
@@ -218,7 +219,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "mark_attendance");
     const { id: attendanceId } = await params;
 
     // Check if attendance exists

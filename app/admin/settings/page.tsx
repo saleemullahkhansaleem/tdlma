@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+import { useAdminPermissions } from "@/lib/hooks/use-admin-permissions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, CheckCircle2, Loader2, Settings as SettingsIcon, History, ChevronDown, ChevronUp, Calendar, Clock, User } from "lucide-react";
 import { SettingsHistoryView } from "@/components/admin/settings-history-view";
@@ -50,7 +52,17 @@ interface UpcomingSetting {
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const router = useRouter();
+  const { hasPermission, loading: permissionsLoading } = useAdminPermissions();
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!permissionsLoading && user) {
+      if (user.role === "admin" && !hasPermission("settings")) {
+        router.replace("/admin/dashboard");
+      }
+    }
+  }, [user, hasPermission, permissionsLoading, router]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ settingKey: string; message: string } | null>(null);
   const [settingsTypes, setSettingsTypes] = useState<SettingType[]>([]);

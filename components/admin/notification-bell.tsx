@@ -23,6 +23,11 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -123,6 +128,15 @@ export function NotificationBell() {
       console.error("Failed to mark all as read:", error);
     }
   };
+
+  // Prevent hydration mismatch by only rendering dropdown on client
+  if (!mounted) {
+    return (
+      <Button variant="ghost" size="icon" className="relative rounded-full" aria-label="Notifications" title="Notifications" disabled>
+        <Bell className="h-5 w-5" />
+      </Button>
+    );
+  }
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>

@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateFilter } from "@/components/admin/date-filter";
 import { getAttendance, getGuests, updateAttendance } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+import { useAdminPermissions } from "@/lib/hooks/use-admin-permissions";
 import { AttendanceWithUser } from "@/lib/types/attendance";
 import { Guest } from "@/lib/types/guest";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -173,6 +175,17 @@ StatusColumnSkeleton.displayName = "StatusColumnSkeleton";
 
 export default function ViewAttendancePage() {
   const { user } = useAuth();
+  const router = useRouter();
+  const { hasPermission, loading: permissionsLoading } = useAdminPermissions();
+
+  useEffect(() => {
+    if (!permissionsLoading && user) {
+      if (user.role === "admin" && !hasPermission("view_attendance")) {
+        router.replace("/admin/dashboard");
+      }
+    }
+  }, [user, hasPermission, permissionsLoading, router]);
+
   // Get today's date in local timezone (YYYY-MM-DD format)
   const getLocalDateString = (date: Date): string => {
     const year = date.getFullYear();

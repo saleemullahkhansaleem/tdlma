@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, menus } from "@/lib/db";
 import { requireAdmin } from "@/lib/middleware/auth";
+import { checkAdminPermission } from "@/lib/utils/permissions";
 import { UpdateMenuDto } from "@/lib/types/menu";
 import { eq } from "drizzle-orm";
 import { notifyAllUsers } from "@/lib/utils/notifications";
@@ -10,7 +11,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "menu");
     const { id: menuId } = await params;
 
     const [menu] = await db
@@ -44,7 +45,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "menu");
     const { id: menuId } = await params;
 
     let body: UpdateMenuDto;
@@ -119,7 +120,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "menu");
     const { id: menuId } = await params;
 
     // Check if menu exists

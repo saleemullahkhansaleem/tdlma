@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+import { useAdminPermissions } from "@/lib/hooks/use-admin-permissions";
 import { Menu } from "@/lib/types/menu";
 import { getAllMenus } from "@/lib/api/client";
 import { MenuCard } from "@/components/admin/menu-card";
@@ -22,6 +24,16 @@ const DAYS: ("Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Satur
 
 export default function AdminMenuPage() {
   const { user } = useAuth();
+  const router = useRouter();
+  const { hasPermission, loading: permissionsLoading } = useAdminPermissions();
+
+  useEffect(() => {
+    if (!permissionsLoading && user) {
+      if (user.role === "admin" && !hasPermission("menu")) {
+        router.replace("/admin/dashboard");
+      }
+    }
+  }, [user, hasPermission, permissionsLoading, router]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [menus, setMenus] = useState<Menu[]>([]);

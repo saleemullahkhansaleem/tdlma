@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, guests, notifications } from "@/lib/db";
 import { requireAdmin, requireAuth } from "@/lib/middleware/auth";
+import { checkAdminPermission } from "@/lib/utils/permissions";
 import { CreateGuestDto } from "@/lib/types/guest";
 import { eq, and, gte, lte, inArray } from "drizzle-orm";
 import { auditLog } from "@/lib/middleware/audit";
@@ -9,7 +10,7 @@ import { createGuestExpenseTransaction } from "@/lib/utils/transaction-helper";
 
 export async function POST(request: NextRequest) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "guests");
     const body: CreateGuestDto | CreateGuestDto[] = await request.json();
 
     // Handle both single guest and array of guests
@@ -182,7 +183,7 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "guests");
     const body = await request.json();
 
     // Validate required fields
@@ -256,7 +257,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "guests");
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const ids = searchParams.get("ids"); // For bulk delete

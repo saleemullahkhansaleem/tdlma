@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+import { useAdminPermissions } from "@/lib/hooks/use-admin-permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,7 +27,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { getAllUsers } from "@/lib/api/client";
+import { getUsersList } from "@/lib/api/client";
 import { User } from "@/lib/types/user";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -71,6 +73,16 @@ const MESSAGE_TEMPLATES: MessageTemplate[] = [
 
 export default function SendNotificationsPage() {
   const { user: currentUser } = useAuth();
+  const router = useRouter();
+  const { hasPermission, loading: permissionsLoading } = useAdminPermissions();
+
+  useEffect(() => {
+    if (!permissionsLoading && currentUser) {
+      if (currentUser.role === "admin" && !hasPermission("send_notifications")) {
+        router.replace("/admin/dashboard");
+      }
+    }
+  }, [currentUser, hasPermission, permissionsLoading, router]);
   const [loading, setLoading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -97,13 +109,17 @@ export default function SendNotificationsPage() {
     if (!currentUser) return;
     setLoadingUsers(true);
     try {
-      const data = await getAllUsers(currentUser);
+      // Use getUsersList which allows admins to fetch users
+      const data = await getUsersList(currentUser);
       setAllUsers(data);
       // Filter active users for specific selection
       const activeUsers = data.filter((u) => u.role === "user" && u.status === "Active");
       setUsers(activeUsers);
     } catch (err: any) {
       setError(err.message || "Failed to load users");
+      // Set empty arrays on error to prevent UI breaking
+      setAllUsers([]);
+      setUsers([]);
     } finally {
       setLoadingUsers(false);
     }

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+import { useAdminPermissions } from "@/lib/hooks/use-admin-permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -61,6 +63,16 @@ interface Transaction {
 
 export default function PaymentsPage() {
   const { user } = useAuth();
+  const router = useRouter();
+  const { hasPermission, loading: permissionsLoading } = useAdminPermissions();
+
+  useEffect(() => {
+    if (!permissionsLoading && user) {
+      if (user.role === "admin" && !hasPermission("payments")) {
+        router.replace("/admin/dashboard");
+      }
+    }
+  }, [user, hasPermission, permissionsLoading, router]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [usersWithDues, setUsersWithDues] = useState<UserWithDues[]>([]);

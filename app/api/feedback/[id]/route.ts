@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, feedback, users } from "@/lib/db";
 import { requireAuth, requireAdmin } from "@/lib/middleware/auth";
+import { checkAdminPermission } from "@/lib/utils/permissions";
 import { UpdateFeedbackDto } from "@/lib/types/feedback";
 import { eq, and } from "drizzle-orm";
 import { sendNotification } from "@/lib/utils/notifications";
@@ -67,7 +68,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "feedback");
     const { id: feedbackId } = await params;
 
     // Validate UUID format

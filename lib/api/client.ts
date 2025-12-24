@@ -174,6 +174,33 @@ export async function getAllUsers(user: AppUser): Promise<User[]> {
   return response.json();
 }
 
+// Get list of users (for dropdowns, filters, etc.) - Admin accessible
+export async function getUsersList(
+  user: AppUser,
+  options?: { role?: string; status?: string }
+): Promise<User[]> {
+  const params = new URLSearchParams();
+  if (options?.role) {
+    params.set("role", options.role);
+  }
+  if (options?.status) {
+    params.set("status", options.status);
+  }
+
+  const response = await fetch(`${API_BASE}/api/users/list?${params.toString()}`, {
+    headers: getAuthHeaders(user),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to fetch users list" }));
+    throw new Error(error.error || error.message || "Failed to fetch users list");
+  }
+
+  return response.json();
+}
+
 export async function getUserById(id: string, user: AppUser): Promise<User> {
   const response = await fetch(`${API_BASE}/api/users/${id}`, {
     headers: getAuthHeaders(user),
@@ -1169,6 +1196,76 @@ export async function getReports(
     throw new Error(
       error.error || error.message || "Failed to fetch reports"
     );
+  }
+
+  return response.json();
+}
+
+// Admin Permissions API
+export interface AdminPermissionsData {
+  adminId: string;
+  adminName: string;
+  adminEmail: string;
+  permissions: Record<string, boolean>;
+}
+
+export interface PermissionsResponse {
+  permissions: AdminPermissionsData[];
+}
+
+export async function getAllAdminPermissions(
+  user: AppUser
+): Promise<PermissionsResponse> {
+  const response = await fetch(`${API_BASE}/api/admin/permissions`, {
+    headers: getAuthHeaders(user),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to fetch permissions" }));
+    throw new Error(error.error || error.message || "Failed to fetch permissions");
+  }
+
+  return response.json();
+}
+
+export async function getAdminPermissionsById(
+  adminId: string,
+  user: AppUser
+): Promise<{ adminId: string; permissions: Record<string, boolean> }> {
+  const response = await fetch(`${API_BASE}/api/admin/permissions/${adminId}`, {
+    headers: getAuthHeaders(user),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to fetch admin permissions" }));
+    throw new Error(
+      error.error || error.message || "Failed to fetch admin permissions"
+    );
+  }
+
+  return response.json();
+}
+
+export async function updateAdminPermissions(
+  adminId: string,
+  permissions: Record<string, boolean>,
+  user: AppUser
+): Promise<{ success: boolean; message: string }> {
+  const response = await fetch(`${API_BASE}/api/admin/permissions`, {
+    method: "POST",
+    headers: getAuthHeaders(user),
+    body: JSON.stringify({ adminId, permissions }),
+  });
+
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ message: "Failed to update permissions" }));
+    throw new Error(error.error || error.message || "Failed to update permissions");
   }
 
   return response.json();

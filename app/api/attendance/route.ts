@@ -6,6 +6,7 @@ import {
   guests,
 } from "@/lib/db";
 import { requireAdmin, requireAuth } from "@/lib/middleware/auth";
+import { checkAdminPermission } from "@/lib/utils/permissions";
 import { CreateAttendanceDto } from "@/lib/types/attendance";
 import { eq, and, sql, lte } from "drizzle-orm";
 import { calculateRemark } from "@/lib/utils";
@@ -179,7 +180,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "mark_attendance");
     const body: CreateAttendanceDto = await request.json();
 
     // Validate required fields (status is optional, can be null)

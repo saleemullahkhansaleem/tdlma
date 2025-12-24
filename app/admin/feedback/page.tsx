@@ -4,11 +4,13 @@ import { FeedbackManagement } from "@/components/admin/feedback-management";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { useAdminPermissions } from "@/lib/hooks/use-admin-permissions";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AdminFeedbackPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const { hasPermission, loading: permissionsLoading } = useAdminPermissions();
 
   useEffect(() => {
     if (!loading) {
@@ -19,6 +21,14 @@ export default function AdminFeedbackPage() {
       }
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    if (!permissionsLoading && user) {
+      if (user.role === "admin" && !hasPermission("feedback")) {
+        router.replace("/admin/dashboard");
+      }
+    }
+  }, [user, hasPermission, permissionsLoading, router]);
 
   if (loading) {
     return (

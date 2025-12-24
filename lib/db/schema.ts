@@ -298,3 +298,20 @@ export const notificationPreferences = pgTable("notification_preferences", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// Admin Permissions Table
+export const adminPermissions = pgTable("admin_permissions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  adminId: uuid("admin_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  module: varchar("module", { length: 50 }).notNull(), // e.g., "dashboard", "menu", "attendance"
+  allowed: boolean("allowed").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueAdminModule: {
+    columns: [table.adminId, table.module],
+    name: "unique_admin_module",
+  },
+}));

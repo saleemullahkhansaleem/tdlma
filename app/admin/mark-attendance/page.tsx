@@ -8,6 +8,8 @@ import { DateFilter } from "@/components/admin/date-filter";
 import { AttendanceWithUser } from "@/lib/types/attendance";
 import { getAttendance } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+import { useAdminPermissions } from "@/lib/hooks/use-admin-permissions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckSquare, Plus, Search, UserPlus } from "lucide-react";
 import Link from "next/link";
@@ -15,6 +17,16 @@ import { AddGuestModal } from "@/components/admin/add-guest-modal";
 
 export default function MarkAttendancePage() {
   const { user } = useAuth();
+  const router = useRouter();
+  const { hasPermission, loading: permissionsLoading } = useAdminPermissions();
+
+  useEffect(() => {
+    if (!permissionsLoading && user) {
+      if (user.role === "admin" && !hasPermission("mark_attendance")) {
+        router.replace("/admin/dashboard");
+      }
+    }
+  }, [user, hasPermission, permissionsLoading, router]);
   const [openGuest, setOpenGuest] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

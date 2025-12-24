@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
+import { useAdminPermissions } from "@/lib/hooks/use-admin-permissions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Users, Plus, Edit, Trash2, Search, Filter, X } from "lucide-react";
-import { getGuests, getAllUsers, deleteGuest, deleteGuests, createGuest } from "@/lib/api/client";
+import { getGuests, getUsersList, deleteGuest, deleteGuests, createGuest } from "@/lib/api/client";
 import { Guest } from "@/lib/types/guest";
 import { User } from "@/lib/types/user";
 import { MealType } from "@/lib/types/attendance";
@@ -35,6 +36,7 @@ import { Label } from "@/components/ui/label";
 export default function AdminGuestsPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { hasPermission, loading: permissionsLoading } = useAdminPermissions();
   const [guests, setGuests] = useState<Guest[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +67,14 @@ export default function AdminGuestsPage() {
   }, [user, authLoading, router]);
 
   useEffect(() => {
+    if (!permissionsLoading && user) {
+      if (user.role === "admin" && !hasPermission("guests")) {
+        router.replace("/admin/dashboard");
+      }
+    }
+  }, [user, hasPermission, permissionsLoading, router]);
+
+  useEffect(() => {
     if (!user || (user.role !== "admin" && user.role !== "super_admin")) return;
 
     loadGuests();
@@ -74,10 +84,13 @@ export default function AdminGuestsPage() {
   const loadUsers = async () => {
     if (!user) return;
     try {
-      const data = await getAllUsers(user);
+      // Use getUsersList which allows admins to fetch users for guest management
+      const data = await getUsersList(user);
       setAllUsers(data);
     } catch (err: any) {
       console.error("Failed to load users:", err);
+      // Set empty array on error to prevent UI breaking
+      setAllUsers([]);
     }
   };
 

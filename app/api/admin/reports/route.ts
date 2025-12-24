@@ -8,6 +8,7 @@ import {
   offDays,
 } from "@/lib/db";
 import { requireAdmin } from "@/lib/middleware/auth";
+import { checkAdminPermission } from "@/lib/utils/permissions";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { calculateRemark } from "@/lib/utils";
 import { calculateActiveDays, getActiveDateRange, isUserActiveOnDate } from "@/lib/utils/active-days";
@@ -47,7 +48,7 @@ export interface ReportsStats {
 
 export async function GET(request: NextRequest) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "view_reports");
     const { searchParams } = new URL(request.url);
 
     // Get date range from query params

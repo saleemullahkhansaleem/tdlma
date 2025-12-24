@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, settings, guests, users, settingsHistory } from "@/lib/db";
 import { requireAdmin, requireAuth } from "@/lib/middleware/auth";
+import { checkAdminPermission } from "@/lib/utils/permissions";
 import { UpdateSettingsDto } from "@/lib/types/settings";
 import { sql, eq, gte } from "drizzle-orm";
 import { auditLog } from "@/lib/middleware/audit";
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "settings");
 
     let body: UpdateSettingsDto;
     try {

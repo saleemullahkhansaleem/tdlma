@@ -22,8 +22,11 @@ import {
   Calendar,
   BellDot,
   UserPlus,
+  Shield,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { useAdminPermissions } from "@/lib/hooks/use-admin-permissions";
+import { getModuleFromRoute } from "@/lib/utils/permissions";
 import {
   Sidebar,
   SidebarHeader,
@@ -38,24 +41,25 @@ import {
 import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutGrid },
-  { href: "/admin/menu", label: "Menu", icon: UtensilsCrossed },
-  { href: "/admin/mark-attendance", label: "Mark Attendance", icon: CheckSquare },
-  { href: "/admin/view-attendance", label: "View Attendance", icon: Users },
-  { href: "/admin/guests", label: "Guest Management", icon: UserPlus },
-  { href: "/admin/view-reports", label: "View Reports", icon: BarChart2 },
-  { href: "/admin/payments", label: "Payments", icon: CreditCard },
-  { href: "/admin/off-days", label: "Off Days", icon: Calendar },
-  { href: "/admin/feedback", label: "Feedback Management", icon: MessageSquare },
+  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutGrid, module: "dashboard" },
+  { href: "/admin/menu", label: "Menu", icon: UtensilsCrossed, module: "menu" },
+  { href: "/admin/mark-attendance", label: "Mark Attendance", icon: CheckSquare, module: "mark_attendance" },
+  { href: "/admin/view-attendance", label: "View Attendance", icon: Users, module: "view_attendance" },
+  { href: "/admin/guests", label: "Guest Management", icon: UserPlus, module: "guests" },
+  { href: "/admin/view-reports", label: "View Reports", icon: BarChart2, module: "view_reports" },
+  { href: "/admin/payments", label: "Payments", icon: CreditCard, module: "payments" },
+  { href: "/admin/off-days", label: "Off Days", icon: Calendar, module: "off_days" },
+  { href: "/admin/feedback", label: "Feedback Management", icon: MessageSquare, module: "feedback" },
   // { href: "/admin/notifications", label: "Notifications", icon: Bell },
-  { href: "/admin/send-notifications", label: "Send Notifications", icon: Send },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
+  { href: "/admin/send-notifications", label: "Send Notifications", icon: Send, module: "send_notifications" },
+  { href: "/admin/settings", label: "Settings", icon: Settings, module: "settings" },
 ];
 
 const superAdminNavItems = [
   { href: "/admin/users", label: "Users", icon: UserCog },
   { href: "/admin/audit-logs", label: "Audit Logs", icon: FileText },
   { href: "/admin/notification-settings", label: "Notification Settings", icon: BellDot },
+  { href: "/admin/permissions", label: "Permission Management", icon: Shield },
 ];
 
 export function AdminSidebar({
@@ -69,12 +73,24 @@ export function AdminSidebar({
 }) {
   const { logout, user } = useAuth();
   const { isCollapsed, toggleCollapsed } = useSidebar();
+  const { hasPermission, loading: permissionsLoading } = useAdminPermissions();
 
   // Force non-collapsed state in mobile
   const effectiveCollapsed = disableCollapse ? false : isCollapsed;
 
   const isSuperAdmin = user?.role === "super_admin";
-  const allNavItems = isSuperAdmin ? [...navItems, ...superAdminNavItems] : navItems;
+  
+  // Filter nav items based on permissions for regular admins
+  const filteredNavItems = isSuperAdmin
+    ? navItems
+    : navItems.filter((item) => {
+        if (!item.module) return true; // Items without module are always shown
+        return hasPermission(item.module as any);
+      });
+
+  const allNavItems = isSuperAdmin
+    ? [...filteredNavItems, ...superAdminNavItems]
+    : filteredNavItems;
 
   return (
     <Sidebar className={disableCollapse ? "w-64" : undefined}>

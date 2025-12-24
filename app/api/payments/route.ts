@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, transactions, users } from "@/lib/db";
 import { requireAdmin } from "@/lib/middleware/auth";
+import { checkAdminPermission } from "@/lib/utils/permissions";
 import { eq, and, desc, gte, lte, or, inArray } from "drizzle-orm";
 import { sendNotification } from "@/lib/utils/notifications";
 import { auditLog } from "@/lib/middleware/audit";
@@ -108,7 +109,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const admin = requireAdmin(request);
+    const admin = await checkAdminPermission(request, "payments");
     const body: CreatePaymentDto = await request.json();
 
     // Validate required fields
