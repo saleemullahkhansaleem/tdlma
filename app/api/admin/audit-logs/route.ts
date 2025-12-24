@@ -86,7 +86,6 @@ export async function GET(request: NextRequest) {
     } catch (dbError: any) {
       // Check if error is due to missing table
       if (dbError.message?.includes("does not exist") || dbError.message?.includes("relation") || dbError.code === "42P01") {
-        console.warn("Audit logs table does not exist yet. Run migrations first.");
         return NextResponse.json({
           logs: [],
           total: 0,

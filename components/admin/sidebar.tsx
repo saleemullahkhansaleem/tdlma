@@ -50,7 +50,6 @@ const navItems = [
   { href: "/admin/payments", label: "Payments", icon: CreditCard, module: "payments" },
   { href: "/admin/off-days", label: "Off Days", icon: Calendar, module: "off_days" },
   { href: "/admin/feedback", label: "Feedback Management", icon: MessageSquare, module: "feedback" },
-  // { href: "/admin/notifications", label: "Notifications", icon: Bell },
   { href: "/admin/send-notifications", label: "Send Notifications", icon: Send, module: "send_notifications" },
   { href: "/admin/settings", label: "Settings", icon: Settings, module: "settings" },
 ];

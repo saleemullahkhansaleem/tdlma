@@ -37,7 +37,6 @@ export async function GET(request: NextRequest) {
         errorCode === "42P01" ||
         errorCode === "42703"
       ) {
-        console.warn("Notifications table error:", errorMessage);
         // Return empty array instead of failing
         return NextResponse.json([]);
       }

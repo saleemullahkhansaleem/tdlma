@@ -52,16 +52,6 @@ export async function POST(request: NextRequest) {
       await sendVerificationEmail(dbUser.email, token, dbUser.name);
     } catch (emailError) {
       console.error("Failed to send verification email:", emailError);
-      // In development, log the token as fallback
-      if (process.env.NODE_ENV === "development") {
-        console.log("Verification token (dev only):", token);
-        console.log(
-          "Verification URL:",
-          `${
-            process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-          }/verify-email?token=${token}`
-        );
-      }
     }
 
     return NextResponse.json({

@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
   const { login, loading } = useAuth();
-  const [email, setEmail] = useState("admin@example.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,10 +104,6 @@ export default function LoginPage() {
               <ThemeToggle size="icon" variant="ghost" />
             </div>
           </form>
-
-          {/* <p className="text-center text-xs text-muted-foreground">
-            Don&apos;t have an account? <span className="text-primary font-medium">Signup</span>
-          </p> */}
         </CardContent>
       </Card>
     </div>

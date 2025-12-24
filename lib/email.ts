@@ -59,7 +59,6 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
     
     // Verify connection before sending
     await transporter.verify();
-    console.log("SMTP server connection verified");
   } catch (verifyError: any) {
     console.error("SMTP connection verification failed:", verifyError);
     
@@ -99,9 +98,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent successfully:", info.messageId);
-    console.log("Email sent to:", to);
+    await transporter.sendMail(mailOptions);
   } catch (error: any) {
     console.error("Error sending email:", error);
     

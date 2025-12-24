@@ -31,7 +31,6 @@ async function getNotificationPreference(type: string): Promise<{
     }
   } catch (error) {
     // If table doesn't exist yet, return null (defaults to enabled)
-    console.warn("Notification preferences table may not exist:", error);
   }
 
   // Default: enabled with email if preference not found

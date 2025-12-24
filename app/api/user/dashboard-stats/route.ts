@@ -68,8 +68,8 @@ export async function GET(request: NextRequest) {
       baseExpense = dailyBaseExpense * userActiveDays;
     }
     
-    // For now, assume meal cost is 0 or we'll add it to settings later
-    const mealCost = 0; // TODO: Add mealCost to settings
+    // Meal cost per meal - can be configured in settings in future versions
+    const mealCost = 0;
 
     // Get attendance for current month where user was present and meal was closed
     const monthAttendance = await db

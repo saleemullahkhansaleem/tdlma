@@ -96,10 +96,7 @@ export default function AuditLogsPage() {
         const data = await response.json();
         setLogs(data.logs || []);
         
-        // Show message if table doesn't exist
-        if (data.message) {
-          console.warn(data.message);
-        }
+        // Show message if table doesn't exist (handled in UI)
       } catch (error) {
         console.error("Failed to load audit logs:", error);
         // Set empty logs on error to show empty state
