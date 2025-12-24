@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { Label } from "../ui/label";
 
 interface DateFilterProps {
   selectedDate: string;
@@ -93,7 +94,7 @@ export function DateFilter({
               variant="outline"
               className="px-4"
             >
-              <Calendar className="mr-2 h-3.5 w-3.5" />
+              <Calendar className="h-3.5 w-3.5" />
               {formatDate(selectedDate)}
             </Button>
           </DropdownMenuTrigger>
@@ -120,9 +121,9 @@ export function DateFilter({
                 </Button>
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground">
+                <Label className="pl-4 block">
                   Select Date
-                </label>
+                </Label>
                 <Input
                   type="date"
                   value={selectedDate}
@@ -143,7 +144,7 @@ export function DateFilter({
           className="px-4"
           disabled
         >
-          <Calendar className="mr-2 h-3.5 w-3.5" />
+          <Calendar className="h-3.5 w-3.5" />
           {formatDate(selectedDate)}
         </Button>
       )}

@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface Transaction {
   id: string;
@@ -174,7 +175,7 @@ export default function UserTransactionsPage() {
             <div className="flex items-center gap-2">
               <Link href="/user/dashboard">
                 <Button variant="ghost" size="sm" className="rounded-full">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  <ArrowLeft className="h-4 w-4" />
                   Back
                 </Button>
               </Link>
@@ -240,24 +241,24 @@ export default function UserTransactionsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-4">
-              <div>
-                <label className="text-sm font-medium mb-1 block">Start Date</label>
+              <div className="space-y-2">
+                <Label className="pl-4 block">Start Date</Label>
                 <Input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                 />
               </div>
-              <div>
-                <label className="text-sm font-medium mb-1 block">End Date</label>
+              <div className="space-y-2">
+                <Label className="pl-4 block">End Date</Label>
                 <Input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                 />
               </div>
-              <div>
-                <label className="text-sm font-medium mb-1 block">Type</label>
+              <div className="space-y-2">
+                <Label className="pl-4 block">Type</Label>
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
                   <SelectTrigger>
                     <SelectValue />
@@ -307,60 +308,62 @@ export default function UserTransactionsPage() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Created By</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {transactions.map((txn) => (
-                      <TableRow key={txn.id}>
-                        <TableCell className="text-sm">
-                          {formatDate(txn.createdAt)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getTypeBadgeVariant(txn.type)}>
-                            {getDisplayType(txn.type, txn.description)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-md">
-                          <div className="text-sm">
-                            {txn.description || "-"}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          <span
-                            className={
-                              txn.type === "paid"
-                                ? "text-green-600 dark:text-green-400"
-                                : "text-orange-600 dark:text-orange-400"
-                            }
-                          >
-                            {formatAmount(txn.amount, txn.type)}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div className="font-medium">
-                              {txn.createdByName || "System"}
-                            </div>
-                            {txn.createdByEmail && (
-                              <div className="text-xs text-muted-foreground">
-                                {txn.createdByEmail}
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
+              <div className="rounded-md border overflow-hidden">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[140px] sm:min-w-[160px]">Date</TableHead>
+                        <TableHead className="min-w-[90px] sm:min-w-[100px]">Type</TableHead>
+                        <TableHead className="min-w-[150px] sm:min-w-[200px]">Description</TableHead>
+                        <TableHead className="text-right min-w-[100px]">Amount</TableHead>
+                        <TableHead className="min-w-[100px] sm:min-w-[120px]">Created By</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {transactions.map((txn) => (
+                        <TableRow key={txn.id}>
+                          <TableCell className="whitespace-nowrap">
+                            {formatDate(txn.createdAt)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={getTypeBadgeVariant(txn.type)}>
+                              {getDisplayType(txn.type, txn.description)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="truncate max-w-md">
+                              {txn.description || "-"}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-medium whitespace-nowrap">
+                            <span
+                              className={
+                                txn.type === "paid"
+                                  ? "text-green-600 dark:text-green-400"
+                                  : "text-orange-600 dark:text-orange-400"
+                              }
+                            >
+                              {formatAmount(txn.amount, txn.type)}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium truncate">
+                                {txn.createdByName || "System"}
+                              </div>
+                              {txn.createdByEmail && (
+                                <div className="text-xs text-muted-foreground truncate">
+                                  {txn.createdByEmail}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             )}
           </CardContent>

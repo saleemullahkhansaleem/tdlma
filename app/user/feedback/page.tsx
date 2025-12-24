@@ -36,7 +36,7 @@ export default function FeedbackPage() {
         <div className="mb-6">
           <Link href="/user/dashboard">
             <Button variant="ghost" size="sm" className="mb-4 rounded-full">
-              <ArrowLeft className="mr-2 h-4 w-4" />
+              <ArrowLeft className="h-4 w-4" />
               Back to Dashboard
             </Button>
           </Link>

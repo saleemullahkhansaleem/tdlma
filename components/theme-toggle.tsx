@@ -14,7 +14,7 @@ export function ThemeToggle({
   size = "icon",
   variant = "ghost",
 }: ThemeToggleProps) {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   // Avoid hydration mismatch by only showing theme after mount
@@ -22,11 +22,16 @@ export function ThemeToggle({
     setMounted(true);
   }, []);
 
-  const isDark = theme === "dark";
-
+  // Toggle between light and dark (system is only default for new users)
   function toggleTheme() {
-    setTheme(isDark ? "light" : "dark");
+    if (theme === "system" || theme === "light") {
+      setTheme("dark");
+    } else {
+      setTheme("light");
+    }
   }
+
+  const isDark = resolvedTheme === "dark";
 
   // Show a placeholder during SSR to avoid hydration mismatch
   if (!mounted) {
@@ -51,32 +56,33 @@ export function ThemeToggle({
   }
 
   return (
-    <Button
-      type="button"
-      variant={variant}
-      size={size}
-      onClick={toggleTheme}
-      className={size === "icon" ? "rounded-full" : "rounded-full px-4"}
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-    >
-      {size === "icon" ? (
-        isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />
-      ) : (
-        <span className="flex items-center gap-2 text-xs">
-          {isDark ? (
-            <>
-              <Sun className="h-4 w-4" />
-              Light mode
-            </>
-          ) : (
-            <>
-              <Moon className="h-4 w-4" />
-              Dark mode
-            </>
-          )}
-        </span>
-      )}
-    </Button>
+      <Button
+        type="button"
+        variant={variant}
+        size={size}
+        onClick={toggleTheme}
+        className={size === "icon" ? "rounded-full" : "rounded-full px-4"}
+        aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+        title={isDark ? "Dark theme (tap to switch to light)" : "Light theme (tap to switch to dark)"}
+      >
+        {size === "icon" ? (
+          isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />
+        ) : (
+          <span className="flex items-center gap-2 text-xs">
+            {isDark ? (
+              <>
+                <Sun className="h-4 w-4" />
+                Light mode
+              </>
+            ) : (
+              <>
+                <Moon className="h-4 w-4" />
+                Dark mode
+              </>
+            )}
+          </span>
+        )}
+      </Button>
   );
 }
 

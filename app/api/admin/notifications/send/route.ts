@@ -41,17 +41,21 @@ export async function POST(request: NextRequest) {
     // Determine recipient list based on recipientType
     switch (body.recipientType) {
       case "all_users": {
-        const allUsers = await db
+        // All active users including admins, super_admins, and all consumers
+        const allUsersResult = await db
           .select({ id: users.id })
           .from(users)
-          .where(and(eq(users.role, "user"), eq(users.status, "Active")));
-        recipientIds = allUsers.map((u) => u.id);
+          .where(eq(users.status, "Active"));
+        recipientIds = allUsersResult.map((u) => u.id);
+        
+        // notifyAllUsers already sends to all active users regardless of role
         await notifyAllUsers({
           type: "admin_notification",
           title: body.title,
           message: body.message,
           sendEmail,
         });
+        
         notificationCount = recipientIds.length;
         break;
       }

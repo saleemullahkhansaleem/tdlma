@@ -40,6 +40,7 @@ import {
   Clock,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 
 export default function AdminProfilePage() {
   const { user: currentUser } = useAuth();
@@ -335,7 +336,7 @@ export default function AdminProfilePage() {
                     onClick={() => setEditMode(true)}
                     className="rounded-full w-full sm:w-auto"
                   >
-                    <Edit2 className="mr-2 h-4 w-4" />
+                    <Edit2 className="h-4 w-4" />
                     Edit Profile
                   </Button>
                 ) : (
@@ -354,7 +355,7 @@ export default function AdminProfilePage() {
                       className="rounded-full flex-1 sm:flex-none"
                       disabled={saving}
                     >
-                      <X className="mr-2 h-4 w-4" />
+                      <X className="h-4 w-4" />
                       Cancel
                     </Button>
                     <Button
@@ -362,7 +363,7 @@ export default function AdminProfilePage() {
                       disabled={saving}
                       className="rounded-full flex-1 sm:flex-none"
                     >
-                      <Save className="mr-2 h-4 w-4" />
+                      <Save className="h-4 w-4" />
                       {saving ? "Saving..." : "Save Changes"}
                     </Button>
                   </div>
@@ -428,10 +429,10 @@ export default function AdminProfilePage() {
               {/* Form Fields */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium flex items-center gap-2">
+                  <Label className="pl-4 flex items-center gap-2">
                     <UserIcon className="h-4 w-4 text-muted-foreground" />
                     Name
-                  </label>
+                  </Label>
                   {editMode ? (
                     <Input
                       value={formData.name}
@@ -449,10 +450,10 @@ export default function AdminProfilePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium flex items-center gap-2">
+                  <Label className="pl-4 flex items-center gap-2">
                     <Mail className="h-4 w-4 text-muted-foreground" />
                     Email
-                  </label>
+                  </Label>
                   {editMode ? (
                     <Input
                       type="email"
@@ -487,20 +488,20 @@ export default function AdminProfilePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium flex items-center gap-2">
+                  <Label className="pl-4 flex items-center gap-2">
                     <Shield className="h-4 w-4 text-muted-foreground" />
                     Role
-                  </label>
+                  </Label>
                   <div className="text-sm text-foreground px-4 py-2 bg-muted/50 rounded-full border">
                     {getRoleLabel(profile.role)}
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium flex items-center gap-2">
+                  <Label className="pl-4 flex items-center gap-2">
                     <Briefcase className="h-4 w-4 text-muted-foreground" />
                     Designation
-                  </label>
+                  </Label>
                   {editMode ? (
                     <Input
                       value={formData.designation}
@@ -525,10 +526,10 @@ export default function AdminProfilePage() {
                 </div>
 
                 <div className="space-y-2 sm:col-span-2">
-                  <label className="text-sm font-medium flex items-center gap-2">
+                  <Label className="pl-4 flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" />
                     User Type
-                  </label>
+                  </Label>
                   <div className="text-sm text-foreground px-4 py-2 bg-muted/50 rounded-full border">
                     {profile.userType ? (
                       profile.userType === "employee" ? (
@@ -565,7 +566,7 @@ export default function AdminProfilePage() {
                   onClick={() => setPasswordDialogOpen(true)}
                   className="rounded-full w-full sm:w-auto"
                 >
-                  <Lock className="mr-2 h-4 w-4" />
+                  <Lock className="h-4 w-4" />
                   Change Password
                 </Button>
               </div>
@@ -629,12 +630,12 @@ export default function AdminProfilePage() {
                 >
                   {sendingVerification ? (
                     <>
-                      <Clock className="mr-2 h-4 w-4 animate-spin" />
+                      <Clock className="h-4 w-4 animate-spin" />
                       Sending...
                     </>
                   ) : (
                     <>
-                      <Mail className="mr-2 h-4 w-4" />
+                      <Mail className="h-4 w-4" />
                       Send Verification Link
                     </>
                   )}
@@ -691,12 +692,12 @@ export default function AdminProfilePage() {
                 >
                   {sendingVerification ? (
                     <>
-                      <Clock className="mr-2 h-4 w-4 animate-spin" />
+                      <Clock className="h-4 w-4 animate-spin" />
                       Sending...
                     </>
                   ) : (
                     <>
-                      <Mail className="mr-2 h-4 w-4" />
+                      <Mail className="h-4 w-4" />
                       Resend Email
                     </>
                   )}
@@ -723,7 +724,7 @@ export default function AdminProfilePage() {
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Current Password</label>
+              <Label className="pl-4 block">Current Password</Label>
               <Input
                 type="password"
                 value={passwordData.currentPassword}
@@ -739,7 +740,7 @@ export default function AdminProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">New Password</label>
+              <Label className="pl-4 block">New Password</Label>
               <Input
                 type="password"
                 value={passwordData.newPassword}
@@ -755,9 +756,9 @@ export default function AdminProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">
+              <Label className="pl-4 block">
                 Confirm New Password
-              </label>
+              </Label>
               <Input
                 type="password"
                 value={passwordData.confirmPassword}
@@ -795,7 +796,7 @@ export default function AdminProfilePage() {
               disabled={changingPassword}
               className="rounded-full"
             >
-              <Lock className="mr-2 h-4 w-4" />
+              <Lock className="h-4 w-4" />
               {changingPassword ? "Changing..." : "Change Password"}
             </Button>
           </DialogFooter>

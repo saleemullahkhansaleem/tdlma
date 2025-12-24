@@ -29,6 +29,7 @@ import {
 import { Calendar, AlertCircle, CheckCircle2, Plus, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Label } from "@/components/ui/label";
 
 export default function OffDaysPage() {
   const { user } = useAuth();
@@ -208,7 +209,7 @@ export default function OffDaysPage() {
           onClick={handleCreate}
           className="rounded-full w-full sm:w-auto"
         >
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className="h-4 w-4" />
           Add Off Day
         </Button>
       </div>
@@ -241,49 +242,53 @@ export default function OffDaysPage() {
         </div>
       ) : (
         <div className="border rounded-lg overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Reason</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {offDays.map((offDay) => (
-                <TableRow key={offDay.id}>
-                  <TableCell className="font-medium text-xs md:text-sm">
-                    {formatDate(offDay.date)}
-                  </TableCell>
-                  <TableCell className="max-w-md">
-                    <p className="text-xs md:text-sm text-muted-foreground line-clamp-2">
-                      {offDay.reason}
-                    </p>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEdit(offDay)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(offDay)}
-                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[140px] sm:min-w-[160px]">Date</TableHead>
+                  <TableHead className="min-w-[150px]">Reason</TableHead>
+                  <TableHead className="text-right min-w-[100px] sm:min-w-[120px]">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {offDays.map((offDay) => (
+                  <TableRow key={offDay.id}>
+                    <TableCell className="font-medium whitespace-nowrap">
+                      {formatDate(offDay.date)}
+                    </TableCell>
+                    <TableCell>
+                      <p className="text-muted-foreground line-clamp-2 max-w-md">
+                        {offDay.reason}
+                      </p>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1 sm:gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(offDay)}
+                          className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                          title="Edit off day"
+                        >
+                          <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(offDay)}
+                          className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive"
+                          title="Delete off day"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
 
@@ -298,7 +303,7 @@ export default function OffDaysPage() {
           <form onSubmit={handleSubmit}>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Date</label>
+                <Label className="pl-4 block">Date</Label>
                 <Input
                   type="date"
                   value={formData.date}
@@ -313,7 +318,7 @@ export default function OffDaysPage() {
                 </p>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Reason</label>
+                <Label className="pl-4 block">Reason</Label>
                 <Input
                   type="text"
                   value={formData.reason}

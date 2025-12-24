@@ -540,10 +540,17 @@ export async function getSettings(user: AppUser): Promise<Settings> {
   });
 
   if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({ message: "Failed to fetch settings" }));
-    throw new Error(error.error || error.message || "Failed to fetch settings");
+    let errorMessage = "Failed to fetch settings";
+    try {
+      const error = await response.json();
+      if (error && typeof error === "object") {
+        errorMessage = error.error || error.message || errorMessage;
+      }
+    } catch {
+      // If response is not JSON, use status text
+      errorMessage = response.statusText || errorMessage;
+    }
+    throw new Error(errorMessage);
   }
 
   return response.json();

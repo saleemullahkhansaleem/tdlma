@@ -20,6 +20,7 @@ import {
 import { Menu, MenuItem, UpdateMenuDto, CreateMenuDto } from "@/lib/types/menu";
 import { createMenu, updateMenu } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth-context";
+import { Label } from "../ui/label";
 
 interface MenuEditModalProps {
   menu: Menu | null;
@@ -125,7 +126,7 @@ export function MenuEditModal({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Menu Name</label>
+            <Label className="pl-4 block">Menu Name</Label>
             <Input
               placeholder="e.g., BIRYANI, DAAL CHANNA"
               value={menuItem.name}
@@ -137,7 +138,7 @@ export function MenuEditModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Image</label>
+            <Label className="pl-4 block">Image</Label>
             <Select
               value={menuItem.imageUrl}
               onValueChange={(value) =>
@@ -167,7 +168,7 @@ export function MenuEditModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Description (Optional)</label>
+            <Label className="pl-4 block">Description (Optional)</Label>
             <Input
               placeholder="Menu description"
               value={menuItem.description || ""}

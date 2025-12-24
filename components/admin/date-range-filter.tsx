@@ -10,6 +10,7 @@ import {
 import { CalendarIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { Label } from "../ui/label";
 
 interface DateRangeFilterProps {
   startDate: Date | null;
@@ -113,7 +114,7 @@ export function DateRangeFilter({
                 !startDate && !endDate && "text-muted-foreground"
               )}
             >
-              <CalendarIcon className="mr-2 h-4 w-4" />
+              <CalendarIcon className="h-4 w-4" />
               {formatDateRange()}
             </Button>
           </DropdownMenuTrigger>
@@ -138,8 +139,8 @@ export function DateRangeFilter({
                 </Button>
               </div>
               <div className="flex gap-2 items-center">
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">From</label>
+                <div className="space-y-2">
+                  <Label className="pl-4 block">From</Label>
                   <Input
                     type="date"
                     value={startDate ? getLocalDateString(startDate) : ""}
@@ -148,8 +149,8 @@ export function DateRangeFilter({
                     className="w-40"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">To</label>
+                <div className="space-y-2">
+                  <Label className="pl-4 block">To</Label>
                   <Input
                     type="date"
                     value={endDate ? getLocalDateString(endDate) : ""}
@@ -172,7 +173,7 @@ export function DateRangeFilter({
           )}
           disabled
         >
-          <CalendarIcon className="mr-2 h-4 w-4" />
+          <CalendarIcon className="h-4 w-4" />
           {formatDateRange()}
         </Button>
       )}

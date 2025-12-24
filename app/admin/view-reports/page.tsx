@@ -212,7 +212,7 @@ export default function ViewReportsPage() {
           </p>
         </div>
         <Button onClick={exportToCSV} disabled={loading || userReports.length === 0}>
-          <Download className="h-4 w-4 mr-2" />
+          <Download className="h-4 w-4" />
           Export CSV
         </Button>
       </div>
@@ -605,21 +605,21 @@ export default function ViewReportsPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="min-w-[80px]">{report.totalOpened}</TableCell>
-                      <TableCell className="min-w-[80px]">{report.totalClosed}</TableCell>
-                      <TableCell className="min-w-[90px]">{report.totalUnclosed}</TableCell>
-                      <TableCell className="min-w-[90px]">{report.totalUnopened}</TableCell>
-                      <TableCell className="font-semibold min-w-[100px]">
+                      <TableCell className="min-w-[80px] whitespace-nowrap text-center">{report.totalOpened}</TableCell>
+                      <TableCell className="min-w-[80px] whitespace-nowrap text-center">{report.totalClosed}</TableCell>
+                      <TableCell className="min-w-[90px] whitespace-nowrap text-center">{report.totalUnclosed}</TableCell>
+                      <TableCell className="min-w-[90px] whitespace-nowrap text-center">{report.totalUnopened}</TableCell>
+                      <TableCell className="font-semibold min-w-[100px] whitespace-nowrap">
                         Rs {report.totalFine.toFixed(2)}
                       </TableCell>
-                      <TableCell className="min-w-[80px]">{report.guestCount}</TableCell>
-                      <TableCell className="min-w-[120px]">
+                      <TableCell className="min-w-[80px] whitespace-nowrap text-center">{report.guestCount}</TableCell>
+                      <TableCell className="min-w-[120px] whitespace-nowrap">
                         Rs {report.guestExpense.toFixed(2)}
                       </TableCell>
-                      <TableCell className="min-w-[120px]">
+                      <TableCell className="min-w-[120px] whitespace-nowrap">
                         Rs {report.baseExpense.toFixed(2)}
                       </TableCell>
-                      <TableCell className="font-semibold min-w-[120px]">
+                      <TableCell className="font-semibold min-w-[120px] whitespace-nowrap">
                         Rs {report.totalDues.toFixed(2)}
                       </TableCell>
                     </TableRow>

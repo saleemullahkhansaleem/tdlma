@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { resetPassword } from "@/lib/api/client";
 import { AlertCircle, CheckCircle2, ArrowLeft, Lock } from "lucide-react";
 import Link from "next/link";
+import { Label } from "@/components/ui/label";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -105,8 +106,8 @@ function ResetPasswordForm() {
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5 text-sm">
-              <label className="font-medium">New Password</label>
+            <div className="space-y-2">
+              <Label className="pl-4 block">New Password</Label>
               <Input
                 type="password"
                 placeholder="Enter new password"
@@ -117,8 +118,8 @@ function ResetPasswordForm() {
               />
             </div>
 
-            <div className="flex flex-col gap-1.5 text-sm">
-              <label className="font-medium">Confirm New Password</label>
+            <div className="space-y-2">
+              <Label className="pl-4 block">Confirm New Password</Label>
               <Input
                 type="password"
                 placeholder="Confirm new password"
@@ -141,7 +142,7 @@ function ResetPasswordForm() {
               className="mt-2 h-11 rounded-full text-base font-semibold"
               disabled={loading || !token}
             >
-              <Lock className="mr-2 h-4 w-4" />
+              <Lock className="h-4 w-4" />
               {loading ? "Resetting..." : "Reset Password"}
             </Button>
 
@@ -152,7 +153,7 @@ function ResetPasswordForm() {
               className="rounded-full"
             >
               <Link href="/login">
-                <ArrowLeft className="mr-2 h-4 w-4" />
+                <ArrowLeft className="h-4 w-4" />
                 Back to login
               </Link>
             </Button>

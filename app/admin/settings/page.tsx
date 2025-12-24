@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, CheckCircle2, Loader2, Settings as SettingsIcon, History, ChevronDown, ChevronUp, Calendar, Clock, User } from "lucide-react";
 import { SettingsHistoryView } from "@/components/admin/settings-history-view";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 
 interface SettingType {
   key: string;
@@ -321,7 +322,7 @@ export default function SettingsPage() {
     } else if (settingType.value_type === "boolean") {
       return (
         <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 cursor-pointer">
+          <Label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={Boolean(fieldState.value)}
@@ -336,7 +337,7 @@ export default function SettingsPage() {
             <span className="text-sm text-muted-foreground">
               {fieldState.value ? "Enabled" : "Disabled"}
             </span>
-          </label>
+          </Label>
         </div>
       );
     } else {
@@ -618,15 +619,15 @@ export default function SettingsPage() {
                 <hr />
                 <CardContent className="space-y-4 p-4 sm:p-6 flex-1 flex flex-col">
                   <div className="space-y-2">
-                    <label className="text-xs font-medium text-muted-foreground">
+                    <Label className="pl-4 block">
                       Value{unit}
-                    </label>
+                    </Label>
                     {renderInput(settingType)}
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-medium text-muted-foreground">
+                    <Label className="pl-4 block">
                       Effective From <span className="text-destructive">*</span>
-                    </label>
+                    </Label>
                     <Input
                       type="date"
                       value={fieldState.effectiveFrom}
@@ -658,12 +659,12 @@ export default function SettingsPage() {
                   >
                     {fieldState.saving ? (
                       <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                         Saving...
                       </>
                     ) : (
                       <>
-                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        <CheckCircle2 className="h-4 w-4" />
                         Save {settingType.key
                           .trim()
                           .replace(/_/g, ' ')

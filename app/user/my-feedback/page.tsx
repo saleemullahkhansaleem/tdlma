@@ -49,11 +49,11 @@ export default function MyFeedbackPage() {
         <div className="mb-6">
           <Link href="/user/dashboard">
             <Button variant="ghost" size="sm" className="mb-4 rounded-full">
-              <ArrowLeft className="mr-2 h-4 w-4" />
+              <ArrowLeft className="h-4 w-4" />
               Back to Dashboard
             </Button>
           </Link>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-2">
             <div>
               <h1 className="text-2xl font-semibold">My Feedback</h1>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -62,7 +62,7 @@ export default function MyFeedbackPage() {
             </div>
             <Link href="/user/feedback">
               <Button className="rounded-full">
-                <MessageSquare className="mr-2 h-4 w-4" />
+                <MessageSquare className="h-4 w-4" />
                 Submit New Feedback
               </Button>
             </Link>

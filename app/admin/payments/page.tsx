@@ -302,51 +302,54 @@ export default function PaymentsPage() {
             </p>
           ) : (
             <div className="rounded-md border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead className="text-right">Payable Amount</TableHead>
-                    <TableHead>Last Payment</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.map((userData) => (
-                    <TableRow key={userData.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar
-                            alt={userData.name}
-                            fallback={userData.name[0]}
-                            className="h-8 w-8"
-                          />
-                          <span className="font-medium">{userData.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{userData.email}</TableCell>
-                      <TableCell className="text-right font-semibold">
-                        Rs {userData.totalDues.toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        {userData.lastPaymentDate
-                          ? new Date(userData.lastPaymentDate).toLocaleDateString()
-                          : "Never"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          onClick={() => handlePaymentClick(userData)}
-                          disabled={userData.totalDues === 0}
-                        >
-                          Process Payment
-                        </Button>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[150px] sm:min-w-[200px]">Name</TableHead>
+                      <TableHead className="min-w-[150px] sm:min-w-[180px]">Email</TableHead>
+                      <TableHead className="text-right min-w-[120px]">Payable Amount</TableHead>
+                      <TableHead className="min-w-[100px] sm:min-w-[120px]">Last Payment</TableHead>
+                      <TableHead className="text-right min-w-[140px] sm:min-w-[160px]">Action</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers.map((userData) => (
+                      <TableRow key={userData.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar
+                              alt={userData.name}
+                              fallback={userData.name[0]}
+                              className="h-7 w-7 sm:h-8 sm:w-8 shrink-0"
+                            />
+                            <span className="font-medium truncate">{userData.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="truncate">{userData.email}</TableCell>
+                        <TableCell className="text-right font-semibold whitespace-nowrap">
+                          Rs {userData.totalDues.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {userData.lastPaymentDate
+                            ? new Date(userData.lastPaymentDate).toLocaleDateString()
+                            : "Never"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            onClick={() => handlePaymentClick(userData)}
+                            disabled={userData.totalDues === 0}
+                            className="text-xs sm:text-sm"
+                          >
+                            Process Payment
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
         </CardContent>
@@ -412,42 +415,44 @@ export default function PaymentsPage() {
             </p>
           ) : (
             <div className="rounded-md border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Admin</TableHead>
-                    <TableHead>Description</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {transactions.map((txn) => (
-                    <TableRow key={txn.id}>
-                      <TableCell>
-                        {new Date(txn.createdAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        {txn.user ? txn.user.name : "Unknown"}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        Rs {txn.amount.toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getTypeBadgeVariant(txn.type)}>
-                          {getDisplayType(txn.type, txn.description)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {txn.createdByUser ? txn.createdByUser.name : "Unknown"}
-                      </TableCell>
-                      <TableCell>{txn.description || "-"}</TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[100px] sm:min-w-[120px]">Date</TableHead>
+                      <TableHead className="min-w-[120px] sm:min-w-[150px]">User</TableHead>
+                      <TableHead className="text-right min-w-[100px]">Amount</TableHead>
+                      <TableHead className="min-w-[80px] sm:min-w-[100px]">Type</TableHead>
+                      <TableHead className="min-w-[100px] sm:min-w-[120px]">Admin</TableHead>
+                      <TableHead className="min-w-[120px] sm:min-w-[150px]">Description</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {transactions.map((txn) => (
+                      <TableRow key={txn.id}>
+                        <TableCell className="whitespace-nowrap">
+                          {new Date(txn.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="truncate">
+                          {txn.user ? txn.user.name : "Unknown"}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold whitespace-nowrap">
+                          Rs {txn.amount.toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getTypeBadgeVariant(txn.type)}>
+                            {getDisplayType(txn.type, txn.description)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="truncate">
+                          {txn.createdByUser ? txn.createdByUser.name : "Unknown"}
+                        </TableCell>
+                        <TableCell className="truncate">{txn.description || "-"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
         </CardContent>
@@ -464,7 +469,7 @@ export default function PaymentsPage() {
           </DialogHeader>
 
           {selectedUser && (
-            <div className="space-y-4">
+            <div className="space-y-4 mt-4">
               <div className="flex items-center gap-3 p-3 bg-muted rounded-md">
                 <Avatar
                   alt={selectedUser.name}
@@ -487,7 +492,7 @@ export default function PaymentsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="amount">Amount (Rs)</Label>
+                <Label className="pl-4 block" htmlFor="amount">Amount (Rs)</Label>
                 <Input
                   id="amount"
                   type="number"
@@ -501,7 +506,7 @@ export default function PaymentsPage() {
               </div>
 
               <div className="space-y-3">
-                <Label className="text-sm font-medium">Payment Type <span className="text-destructive">*</span></Label>
+                <Label className="pl-4 block">Payment Type <span className="text-destructive">*</span></Label>
                 <RadioGroup
                   value={paymentType}
                   onValueChange={(value) =>
@@ -513,10 +518,7 @@ export default function PaymentsPage() {
                     <RadioGroupItem value="paid" id="paid" />
                     <Label
                       htmlFor="paid"
-                      className={cn(
-                        "text-sm font-normal cursor-pointer",
-                        paymentType === "paid" && "font-medium"
-                      )}
+                      className={cn("cursor-pointer", paymentType === "paid" && "font-medium")}
                     >
                       Paid
                     </Label>
@@ -525,10 +527,7 @@ export default function PaymentsPage() {
                     <RadioGroupItem value="reduced" id="reduced" />
                     <Label
                       htmlFor="reduced"
-                      className={cn(
-                        "text-sm font-normal cursor-pointer",
-                        paymentType === "reduced" && "font-medium"
-                      )}
+                      className={cn("cursor-pointer", paymentType === "reduced" && "font-medium")}
                     >
                       Reduced
                     </Label>
@@ -537,10 +536,7 @@ export default function PaymentsPage() {
                     <RadioGroupItem value="waived" id="waived" />
                     <Label
                       htmlFor="waived"
-                      className={cn(
-                        "text-sm font-normal cursor-pointer",
-                        paymentType === "waived" && "font-medium"
-                      )}
+                      className={cn("cursor-pointer", paymentType === "waived" && "font-medium")}
                     >
                       Waived
                     </Label>
@@ -549,7 +545,7 @@ export default function PaymentsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description (Optional)</Label>
+                <Label className="pl-4 block" htmlFor="description">Description (Optional)</Label>
                 <Input
                   id="description"
                   value={paymentDescription}

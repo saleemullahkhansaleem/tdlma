@@ -35,6 +35,7 @@ interface MessageTemplate {
   title: string;
   message: string;
   icon: React.ReactNode;
+  description: string;
 }
 
 const MESSAGE_TEMPLATES: MessageTemplate[] = [
@@ -43,24 +44,28 @@ const MESSAGE_TEMPLATES: MessageTemplate[] = [
     title: "Clear Your Dues",
     message: "Dear Member,\n\nThis is a reminder to clear your pending dues. Please make the payment at your earliest convenience to avoid any inconvenience.\n\nThank you for your cooperation.",
     icon: <DollarSign className="h-4 w-4" />,
+    description: "A reminder message asking members to clear their pending dues",
   },
   {
     id: "payment_reminder",
     title: "Payment Reminder",
     message: "Dear Member,\n\nThis is a friendly reminder that your payment is due. Please complete the payment to continue enjoying our services.\n\nThank you.",
     icon: <Clock className="h-4 w-4" />,
+    description: "A friendly reminder notification about upcoming payment due dates",
   },
   {
     id: "menu_update",
     title: "Menu Update",
     message: "Dear Members,\n\nWe have updated the menu for this week. Please check the new menu items and plan your meals accordingly.\n\nThank you.",
     icon: <Info className="h-4 w-4" />,
+    description: "Notification about menu updates for the current week",
   },
   {
     id: "system_maintenance",
     title: "System Maintenance",
     message: "Dear Members,\n\nWe will be performing system maintenance on [DATE]. The system may be temporarily unavailable during this time. We apologize for any inconvenience.\n\nThank you for your understanding.",
     icon: <Info className="h-4 w-4" />,
+    description: "Notice about scheduled system maintenance and potential downtime",
   },
 ];
 
@@ -107,7 +112,8 @@ export default function SendNotificationsPage() {
   const getRecipientCount = (): number => {
     switch (formData.recipientType) {
       case "all_users":
-        return allUsers.filter((u) => u.role === "user" && u.status === "Active").length;
+        // All active users including admins, super_admins, and all consumers
+        return allUsers.filter((u) => u.status === "Active").length;
       case "all_consumers":
         // All users with role="user" and status="Active", excluding admins and super_admins
         return allUsers.filter((u) => u.role === "user" && u.status === "Active").length;
@@ -243,31 +249,37 @@ export default function SendNotificationsPage() {
       id: "all_users",
       label: "All Users",
       icon: <Users className="h-4 w-4" />,
+      description: "Includes all active users: admins, super admins, and all consumers (students and employees)",
     },
     {
       id: "all_consumers",
       label: "All Consumers",
       icon: <Users className="h-4 w-4" />,
+      description: "Includes all active consumers only (students and employees), excludes admins and super admins",
     },
     {
       id: "students",
       label: "All Students",
       icon: <GraduationCap className="h-4 w-4" />,
+      description: "Includes all active users with user type 'student'",
     },
     {
       id: "employees",
       label: "All Employees",
       icon: <Briefcase className="h-4 w-4" />,
+      description: "Includes all active users with user type 'employee'",
     },
     {
       id: "admins",
       label: "All Admins",
       icon: <Shield className="h-4 w-4" />,
+      description: "Includes all active users with role 'admin' or 'super_admin'",
     },
     {
       id: "specific_users",
       label: "Specific Users",
       icon: <UserCheck className="h-4 w-4" />,
+      description: "Select specific users from a list to send notifications to",
     },
   ];
 
@@ -314,7 +326,7 @@ export default function SendNotificationsPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-3">
-            <Label className="text-sm font-medium">Quick Templates</Label>
+            <Label className="pl-4 block">Quick Templates</Label>
             <div className="flex flex-wrap gap-2">
               {MESSAGE_TEMPLATES.map((template) => (
                 <Button
@@ -323,6 +335,7 @@ export default function SendNotificationsPage() {
                   variant="outline"
                   size="sm"
                   className="rounded-full"
+                  title={template.description}
                   onClick={() => handleTemplateSelect(template)}
                 >
                   {template.icon}
@@ -333,7 +346,7 @@ export default function SendNotificationsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="title" className="text-sm font-medium">
+            <Label className="pl-4 block" htmlFor="title">
               Title <span className="text-destructive">*</span>
             </Label>
             <Input
@@ -349,7 +362,7 @@ export default function SendNotificationsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="message" className="text-sm font-medium">
+            <Label className="pl-4 block" htmlFor="message">
               Message <span className="text-destructive">*</span>
             </Label>
             <Textarea
@@ -367,7 +380,7 @@ export default function SendNotificationsPage() {
           </div>
 
           <div className="space-y-3">
-            <Label className="text-sm font-medium">
+            <Label className="pl-4 block">
               Recipients <span className="text-destructive">*</span>
             </Label>
             <div className="flex flex-wrap gap-2">
@@ -381,6 +394,7 @@ export default function SendNotificationsPage() {
                     "rounded-full",
                     formData.recipientType === type.id && "shadow-sm"
                   )}
+                  title={type.description}
                   onClick={() => {
                     setFormData({
                       ...formData,
@@ -408,7 +422,7 @@ export default function SendNotificationsPage() {
           {formData.recipientType === "specific_users" && (
             <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Select Users</Label>
+                <Label className="pl-4 block">Select Users</Label>
                 <Button
                   type="button"
                   variant="ghost"
@@ -539,7 +553,7 @@ export default function SendNotificationsPage() {
                 setFormData({ ...formData, sendEmail: checked === true })
               }
             />
-            <Label htmlFor="send-email" className="text-sm font-normal cursor-pointer flex-1">
+            <Label className="cursor-pointer flex-1" htmlFor="send-email">
               Send email notification
             </Label>
           </div>
@@ -554,7 +568,7 @@ export default function SendNotificationsPage() {
               <>Sending...</>
             ) : (
               <>
-                <Send className="h-4 w-4 mr-2" />
+                <Send className="h-4 w-4" />
                 Send Notifications
               </>
             )}

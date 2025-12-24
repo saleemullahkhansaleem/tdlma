@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Label } from "../ui/label";
 
 export function AddGuestModal({
   open,
@@ -165,7 +166,7 @@ export function AddGuestModal({
 
         <div className="mt-4 space-y-4 text-sm">
           <div className="space-y-2">
-            <label className="font-medium">Inviter</label>
+            <Label className="pl-4 block">Inviter</Label>
             <Select value={inviterId} onValueChange={setInviterId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select an inviter" />
@@ -181,7 +182,7 @@ export function AddGuestModal({
           </div>
 
           <div className="space-y-2">
-            <label className="font-medium">Number of Guests</label>
+            <Label className="pl-4 block">Number of Guests</Label>
             <Input
               type="number"
               min={1}
@@ -192,7 +193,7 @@ export function AddGuestModal({
 
           {guestNames.map((name, index) => (
             <div key={index} className="space-y-2">
-              <label className="font-medium">Guest {index + 1} Name</label>
+              <Label className="pl-4 block">Guest {index + 1} Name</Label>
               <Input
                 type="text"
                 placeholder={`Enter guest ${index + 1} name`}

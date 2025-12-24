@@ -120,33 +120,38 @@ export function TodayMenu({
     : "";
 
   const textSizeClasses = {
-    sm: "text-sm",
-    md: "text-base",
-    lg: "text-lg",
-    xl: "text-xl",
-    "2xl": "text-2xl",
+    sm: "text-xs sm:text-sm",
+    md: "text-sm sm:text-base",
+    lg: "text-base sm:text-lg",
+    xl: "text-lg sm:text-xl",
+    "2xl": "text-xl sm:text-2xl",
   };
 
+  // Responsive image size: smaller on mobile, full size on desktop
+  // Using CSS custom properties for responsive sizing
+  const imageSizeRatio = imageSize / 36; // Default is 36
+  const mobileImageSize = Math.round(28 * imageSizeRatio);
+
   return (
-    <div className="flex items-center justify-between gap-2 w-full">
+    <div className="flex items-center justify-between gap-2 sm:gap-3 w-full" title="Today's Menu">
       {/* Left side: Date and Menu Name */}
       <div className="flex flex-col gap-0.5 min-w-0 flex-1">
         {showDate && mounted && (
-          <span className="text-xs text-muted-foreground leading-tight">
+          <span className="text-[10px] sm:text-xs text-muted-foreground leading-tight">
             {todayDate}
           </span>
         )}
         {showDate && !mounted && (
-          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-2.5 sm:h-3 w-20 sm:w-24" />
         )}
         {loading ? (
           <Skeleton
-            className={`${textSize === "sm" ? "h-4" :
-              textSize === "md" ? "h-5" :
-                textSize === "lg" ? "h-6" :
-                  textSize === "xl" ? "h-7" :
-                    "h-8"
-              } w-32`}
+            className={`${textSize === "sm" ? "h-3 sm:h-4" :
+              textSize === "md" ? "h-4 sm:h-5" :
+                textSize === "lg" ? "h-5 sm:h-6" :
+                  textSize === "xl" ? "h-6 sm:h-7" :
+                    "h-7 sm:h-8"
+              } w-24 sm:w-32`}
           />
         ) : isSunday ? (
           <span className={`font-semibold ${textSizeClasses[textSize]} text-muted-foreground italic leading-tight`}>
@@ -163,19 +168,21 @@ export function TodayMenu({
         )}
       </div>
 
-      {/* Right side: Image */}
-      <div className="shrink-0">
+      {/* Right side: Image - Responsive sizing */}
+      <div 
+        className="today-menu-image shrink-0"
+        style={{
+          width: `${mobileImageSize}px`,
+          height: `${mobileImageSize}px`,
+        }}
+      >
         {loading ? (
           <Skeleton
-            className="rounded-full"
-            style={{ width: imageSize, height: imageSize }}
+            className="rounded-full w-full h-full"
           />
         ) : isSunday ? (
-          <div
-            className="rounded-full border border-border bg-muted flex items-center justify-center shadow-sm"
-            style={{ width: imageSize, height: imageSize }}
-          >
-            <span className="text-xs text-muted-foreground">☀️</span>
+          <div className="rounded-full border border-border bg-muted flex items-center justify-center shadow-sm w-full h-full">
+            <span className="text-[10px] sm:text-xs text-muted-foreground">☀️</span>
           </div>
         ) : menuName ? (
           <Image
@@ -183,17 +190,26 @@ export function TodayMenu({
             alt={menuName}
             width={imageSize}
             height={imageSize}
-            className="rounded-full border border-border object-cover shadow-sm"
+            className="rounded-full border border-border object-cover shadow-sm w-full h-full"
           />
         ) : (
-          <div
-            className="rounded-full border border-border bg-muted flex items-center justify-center shadow-sm"
-            style={{ width: imageSize, height: imageSize }}
-          >
-            <span className="text-xs text-muted-foreground">📋</span>
+          <div className="rounded-full border border-border bg-muted flex items-center justify-center shadow-sm w-full h-full">
+            <span className="text-[10px] sm:text-xs text-muted-foreground">📋</span>
           </div>
         )}
       </div>
+      <style jsx>{`
+        .today-menu-image {
+          width: ${mobileImageSize}px;
+          height: ${mobileImageSize}px;
+        }
+        @media (min-width: 640px) {
+          .today-menu-image {
+            width: ${imageSize}px;
+            height: ${imageSize}px;
+          }
+        }
+      `}</style>
     </div>
   );
 }

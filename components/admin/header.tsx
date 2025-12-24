@@ -62,6 +62,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                   size="icon"
                   className="rounded-full"
                   aria-label="User menu"
+                  title="User menu"
                 >
                   <Avatar
                     alt={user?.name}
@@ -70,7 +71,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                   />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-60 p-0 rounded-lg shadow-lg">
+              <DropdownMenuContent align="end" className="w-48 p-0 rounded-lg shadow-lg">
                 <div className="flex items-center gap-3 p-2 border-b bg-muted/50">
                   <Avatar
                     alt={user?.name}
@@ -88,10 +89,10 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  className="cursor-pointer text-destructive focus:text-destructive"
+                  className="cursor-pointer text-destructive focus:text-destructive gap-2"
                   onClick={logout}
                 >
-                  <LogOut className="h-4 w-4 mr-2" />
+                  <LogOut className="h-4 w-4" />
                   <span>Logout</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>

@@ -120,7 +120,7 @@ export default function AdminNotificationsPage() {
         </div>
         {unreadCount > 0 && (
           <Button variant="outline" size="sm" onClick={markAllAsRead}>
-            <CheckCircle2 className="h-4 w-4 mr-2" />
+            <CheckCircle2 className="h-4 w-4" />
             Mark all as read
           </Button>
         )}

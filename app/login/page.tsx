@@ -7,11 +7,15 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Eye, EyeOff } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
   const { login, loading } = useAuth();
   const [email, setEmail] = useState("admin@example.com");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -30,14 +34,15 @@ export default function LoginPage() {
         <CardContent className="p-8 flex flex-col gap-6">
           <div className="flex flex-col items-center gap-2">
             <Image src="/logo.svg" alt="Logo" width={80} height={80} className="mb-1" />
+            <h1 className="text-lg font-semibold">TDLMA - Tensai Devs Food</h1>
             <p className="text-sm text-muted-foreground text-center">
               Login to manage your lunch bookings
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5 text-sm">
-              <label className="font-medium">Email</label>
+            <div className="space-y-2">
+              <Label className="pl-4 block">Email</Label>
               <Input
                 type="email"
                 placeholder="Type Here"
@@ -47,9 +52,9 @@ export default function LoginPage() {
               />
             </div>
 
-            <div className="flex flex-col gap-1.5 text-sm">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label className="font-medium">Password</label>
+                <Label className="pl-4 block">Password</Label>
                 <Link
                   href="/forgot-password"
                   className="text-xs text-primary hover:underline"
@@ -57,13 +62,28 @@ export default function LoginPage() {
                   Forgot Password?
                 </Link>
               </div>
-              <Input
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             {error && (
@@ -80,20 +100,9 @@ export default function LoginPage() {
               {loading ? "Logging in..." : "Login"}
             </Button>
 
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <div className="h-px flex-1 bg-border" />
-              <span>or</span>
-              <div className="h-px flex-1 bg-border" />
+            <div className="flex items-center justify-center pt-2">
+              <ThemeToggle size="icon" variant="ghost" />
             </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 rounded-full flex items-center justify-center gap-2"
-            >
-              <Image src="/google-logo.webp" alt="Google" width={18} height={18} />
-              <span className="text-sm">Login with Google</span>
-            </Button>
           </form>
 
           {/* <p className="text-center text-xs text-muted-foreground">

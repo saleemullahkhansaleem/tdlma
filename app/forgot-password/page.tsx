@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { forgotPassword } from "@/lib/api/client";
 import { AlertCircle, CheckCircle2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { Label } from "@/components/ui/label";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -69,7 +70,7 @@ export default function ForgotPasswordPage() {
                   className="rounded-full w-full"
                 >
                   <Link href="/login">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    <ArrowLeft className="h-4 w-4" />
                     Back to login
                   </Link>
                 </Button>
@@ -94,8 +95,8 @@ export default function ForgotPasswordPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5 text-sm">
-              <label className="font-medium">Email</label>
+            <div className="space-y-2">
+              <Label className="pl-4 block">Email</Label>
               <Input
                 type="email"
                 placeholder="Type Here"
@@ -127,7 +128,7 @@ export default function ForgotPasswordPage() {
               className="rounded-full"
             >
               <Link href="/login">
-                <ArrowLeft className="mr-2 h-4 w-4" />
+                <ArrowLeft className="h-4 w-4" />
                 Back to login
               </Link>
             </Button>

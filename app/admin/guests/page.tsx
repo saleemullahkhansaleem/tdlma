@@ -254,24 +254,24 @@ export default function AdminGuestsPage() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-5">
-            <div>
-              <Label className="text-sm font-medium mb-1 block">Start Date</Label>
+            <div className="space-y-2">
+              <Label className="pl-4 block">Start Date</Label>
               <Input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
               />
             </div>
-            <div>
-              <Label className="text-sm font-medium mb-1 block">End Date</Label>
+            <div className="space-y-2">
+              <Label className="pl-4 block">End Date</Label>
               <Input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
               />
             </div>
-            <div>
-              <Label className="text-sm font-medium mb-1 block">Inviter</Label>
+            <div className="space-y-2">
+              <Label className="pl-4 block">Inviter</Label>
               <Select value={inviterFilter} onValueChange={setInviterFilter}>
                 <SelectTrigger>
                   <SelectValue />
@@ -286,8 +286,8 @@ export default function AdminGuestsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label className="text-sm font-medium mb-1 block">Meal Type</Label>
+            <div className="space-y-2">
+              <Label className="pl-4 block">Meal Type</Label>
               <Select value={mealTypeFilter} onValueChange={setMealTypeFilter}>
                 <SelectTrigger>
                   <SelectValue />
@@ -316,8 +316,8 @@ export default function AdminGuestsPage() {
               </Button>
             </div>
           </div>
-          <div className="mt-4">
-            <Label className="text-sm font-medium mb-1 block">Search</Label>
+          <div className="mt-4 space-y-2">
+            <Label className="pl-4 block">Search</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -352,7 +352,7 @@ export default function AdminGuestsPage() {
                   onClick={() => setDeleteDialogOpen(true)}
                   className="rounded-full"
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
+                  <Trash2 className="h-4 w-4" />
                   Delete Selected
                 </Button>
               </div>
@@ -377,72 +377,76 @@ export default function AdminGuestsPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={
-                          filteredGuests.length > 0 &&
-                          selectedGuests.size === filteredGuests.length
-                        }
-                        onCheckedChange={toggleSelectAll}
-                      />
-                    </TableHead>
-                    <TableHead>Guest Name</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Meal Type</TableHead>
-                    <TableHead>Inviter</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead className="w-24">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredGuests.map((guest) => (
-                    <TableRow key={guest.id}>
-                      <TableCell>
+            <div className="rounded-md border overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">
                         <Checkbox
-                          checked={selectedGuests.has(guest.id)}
-                          onCheckedChange={() => toggleGuestSelection(guest.id)}
+                          checked={
+                            filteredGuests.length > 0 &&
+                            selectedGuests.size === filteredGuests.length
+                          }
+                          onCheckedChange={toggleSelectAll}
                         />
-                      </TableCell>
-                      <TableCell className="font-medium">{guest.name}</TableCell>
-                      <TableCell>{formatDate(guest.date)}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{guest.mealType}</Badge>
-                      </TableCell>
-                      <TableCell>{getInviterName(guest.inviterId)}</TableCell>
-                      <TableCell className="text-right">
-                        Rs {parseFloat(guest.amount.toString()).toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(guest)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedGuests(new Set([guest.id]));
-                              setDeleteDialogOpen(true);
-                            }}
-                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                      </TableHead>
+                      <TableHead className="min-w-[120px] sm:min-w-[150px]">Guest Name</TableHead>
+                      <TableHead className="min-w-[100px] sm:min-w-[120px]">Date</TableHead>
+                      <TableHead className="min-w-[90px] sm:min-w-[100px]">Meal Type</TableHead>
+                      <TableHead className="min-w-[120px] sm:min-w-[150px]">Inviter</TableHead>
+                      <TableHead className="text-right min-w-[100px]">Amount</TableHead>
+                      <TableHead className="w-20 sm:w-24">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredGuests.map((guest) => (
+                      <TableRow key={guest.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedGuests.has(guest.id)}
+                            onCheckedChange={() => toggleGuestSelection(guest.id)}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium truncate">{guest.name}</TableCell>
+                        <TableCell className="whitespace-nowrap">{formatDate(guest.date)}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{guest.mealType}</Badge>
+                        </TableCell>
+                        <TableCell className="truncate">{getInviterName(guest.inviterId)}</TableCell>
+                        <TableCell className="text-right font-semibold whitespace-nowrap">
+                          Rs {parseFloat(guest.amount.toString()).toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(guest)}
+                              className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                              title="Edit guest"
+                            >
+                              <Edit className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedGuests(new Set([guest.id]));
+                                setDeleteDialogOpen(true);
+                              }}
+                              className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive"
+                              title="Delete guest"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
         </CardContent>
@@ -598,9 +602,9 @@ function AddGuestDialog({
           </div>
         )}
 
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="inviter">Inviter</Label>
+        <div className="space-y-4 mt-4">
+          <div className="space-y-2">
+            <Label className="pl-4 block" htmlFor="inviter">Inviter</Label>
             <Select
               value={formData.inviterId}
               onValueChange={(value) =>
@@ -620,8 +624,8 @@ function AddGuestDialog({
             </Select>
           </div>
 
-          <div>
-            <Label htmlFor="name">Guest Name</Label>
+          <div className="space-y-2">
+            <Label className="pl-4 block" htmlFor="name">Guest Name</Label>
             <Input
               id="name"
               value={formData.name}
@@ -632,8 +636,8 @@ function AddGuestDialog({
             />
           </div>
 
-          <div>
-            <Label htmlFor="date">Date</Label>
+          <div className="space-y-2">
+            <Label className="pl-4 block" htmlFor="date">Date</Label>
             <Input
               id="date"
               type="date"
@@ -644,8 +648,8 @@ function AddGuestDialog({
             />
           </div>
 
-          <div>
-            <Label htmlFor="mealType">Meal Type</Label>
+          <div className="space-y-2">
+            <Label className="pl-4 block" htmlFor="mealType">Meal Type</Label>
             <Select
               value={formData.mealType}
               onValueChange={(value) =>
@@ -760,8 +764,8 @@ function EditGuestDialog({
         )}
 
         <div className="space-y-4">
-          <div>
-            <Label htmlFor="inviter">Inviter</Label>
+          <div className="space-y-2">
+            <Label className="pl-4 block" htmlFor="inviter">Inviter</Label>
             <Select
               value={formData.inviterId}
               onValueChange={(value) =>
@@ -781,8 +785,8 @@ function EditGuestDialog({
             </Select>
           </div>
 
-          <div>
-            <Label htmlFor="name">Guest Name</Label>
+          <div className="space-y-2">
+            <Label className="pl-4 block" htmlFor="name">Guest Name</Label>
             <Input
               id="name"
               value={formData.name}
@@ -792,8 +796,8 @@ function EditGuestDialog({
             />
           </div>
 
-          <div>
-            <Label htmlFor="date">Date</Label>
+          <div className="space-y-2">
+            <Label className="pl-4 block" htmlFor="date">Date</Label>
             <Input
               id="date"
               type="date"
@@ -804,8 +808,8 @@ function EditGuestDialog({
             />
           </div>
 
-          <div>
-            <Label htmlFor="mealType">Meal Type</Label>
+          <div className="space-y-2">
+            <Label className="pl-4 block" htmlFor="mealType">Meal Type</Label>
             <Select
               value={formData.mealType}
               onValueChange={(value) =>

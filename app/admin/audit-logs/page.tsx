@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 interface AuditLog {
   id: string;
@@ -288,8 +289,8 @@ export default function AuditLogsPage() {
             </CardHeader>
             <CardContent>
               <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="text-sm font-medium mb-1 block">Action</label>
+                <div className="flex-1 space-y-2">
+                  <Label className="pl-4 block">Action</Label>
                   <Input
                     placeholder="Filter by action (e.g., CREATE_USER)"
                     value={searchAction}
@@ -315,7 +316,7 @@ export default function AuditLogsPage() {
                       onClick={() => setDeleteDialogOpen(true)}
                       className="rounded-full"
                     >
-                      <Trash2 className="h-4 w-4 mr-2" />
+                      <Trash2 className="h-4 w-4" />
                       Delete Selected
                     </Button>
                   </div>
@@ -343,86 +344,89 @@ export default function AuditLogsPage() {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">
-                          <Checkbox
-                            checked={logs.length > 0 && selectedLogs.size === logs.length}
-                            onCheckedChange={toggleSelectAll}
-                          />
-                        </TableHead>
-                        <TableHead>Date & Time</TableHead>
-                        <TableHead>User</TableHead>
-                        <TableHead>Action</TableHead>
-                        <TableHead>Entity Type</TableHead>
-                        <TableHead>Entity ID</TableHead>
-                        <TableHead>Details</TableHead>
-                        <TableHead className="w-20">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {logs.map((log) => (
-                        <TableRow key={log.id}>
-                          <TableCell>
+                <div className="rounded-md border overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12">
                             <Checkbox
-                              checked={selectedLogs.has(log.id)}
-                              onCheckedChange={() => toggleLogSelection(log.id)}
+                              checked={logs.length > 0 && selectedLogs.size === logs.length}
+                              onCheckedChange={toggleSelectAll}
                             />
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {formatDate(log.createdAt)}
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">{log.userName || "Unknown"}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {log.userEmail || log.userId}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
-                              {log.action}
-                            </span>
-                          </TableCell>
-                          <TableCell>{log.entityType}</TableCell>
-                          <TableCell>
-                            {log.entityId ? (
-                              <span className="font-mono text-xs text-muted-foreground">
-                                {log.entityId.substring(0, 8)}...
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {log.details ? (
-                              <pre className="text-xs bg-muted p-2 rounded overflow-auto max-w-md">
-                                {JSON.stringify(log.details, null, 2)}
-                              </pre>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedLogs(new Set([log.id]));
-                                setDeleteDialogOpen(true);
-                              }}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
+                          </TableHead>
+                          <TableHead className="min-w-[120px] sm:min-w-[150px]">Date & Time</TableHead>
+                          <TableHead className="min-w-[120px] sm:min-w-[150px]">User</TableHead>
+                          <TableHead className="min-w-[100px] sm:min-w-[120px]">Action</TableHead>
+                          <TableHead className="min-w-[90px] sm:min-w-[110px]">Entity Type</TableHead>
+                          <TableHead className="min-w-[100px] sm:min-w-[120px]">Entity ID</TableHead>
+                          <TableHead className="min-w-[150px] sm:min-w-[200px]">Details</TableHead>
+                          <TableHead className="w-16 sm:w-20">Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {logs.map((log) => (
+                          <TableRow key={log.id}>
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedLogs.has(log.id)}
+                                onCheckedChange={() => toggleLogSelection(log.id)}
+                              />
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              {formatDate(log.createdAt)}
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium truncate">{log.userName || "Unknown"}</div>
+                                <div className="text-xs text-muted-foreground truncate">
+                                  {log.userEmail || log.userId}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="font-mono text-xs bg-muted px-2 py-1 rounded whitespace-nowrap">
+                                {log.action}
+                              </span>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">{log.entityType}</TableCell>
+                            <TableCell>
+                              {log.entityId ? (
+                                <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">
+                                  {log.entityId.substring(0, 8)}...
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {log.details ? (
+                                <pre className="text-xs bg-muted p-2 rounded overflow-auto max-w-[200px] sm:max-w-md">
+                                  {JSON.stringify(log.details, null, 2)}
+                                </pre>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedLogs(new Set([log.id]));
+                                  setDeleteDialogOpen(true);
+                                }}
+                                className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive"
+                                title="Delete log"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               )}
             </CardContent>

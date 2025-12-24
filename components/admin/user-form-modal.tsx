@@ -179,7 +179,7 @@ export function UserFormModal({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Name</label>
+            <Label className="pl-4 block">Name</Label>
             <Input
               placeholder="Full name"
               value={formData.name}
@@ -189,7 +189,7 @@ export function UserFormModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Email</label>
+            <Label className="pl-4 block">Email</Label>
             <Input
               type="email"
               placeholder="email@example.com"
@@ -203,7 +203,7 @@ export function UserFormModal({
 
           {isEdit && user.id === currentUser?.id && (
             <div className="space-y-2">
-              <label className="text-sm font-medium">Current Password</label>
+              <Label className="pl-4 block">Current Password</Label>
               <Input
                 type="password"
                 placeholder="Enter current password (required if changing password)"
@@ -219,9 +219,9 @@ export function UserFormModal({
           )}
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">
+            <Label className="pl-4 block">
               {isEdit ? "New Password (leave empty to keep current)" : "Password"}
-            </label>
+            </Label>
             <Input
               type="password"
               placeholder={isEdit ? "New password (optional)" : "Password"}
@@ -235,7 +235,7 @@ export function UserFormModal({
 
           {formData.password && (
             <div className="space-y-2">
-              <label className="text-sm font-medium">Confirm Password</label>
+              <Label className="pl-4 block">Confirm Password</Label>
               <Input
                 type="password"
                 placeholder="Confirm password"
@@ -249,7 +249,7 @@ export function UserFormModal({
           )}
 
           <div className="space-y-3">
-            <Label className="text-sm font-medium">Role <span className="text-destructive">*</span></Label>
+            <Label className="pl-4 block">Role <span className="text-destructive">*</span></Label>
             <RadioGroup
               value={formData.role}
               onValueChange={(value) =>
@@ -278,7 +278,7 @@ export function UserFormModal({
           </div>
 
           <div className="space-y-3">
-            <Label className="text-sm font-medium">Status <span className="text-destructive">*</span></Label>
+            <Label className="pl-4 block">Status <span className="text-destructive">*</span></Label>
             <RadioGroup
               value={formData.status}
               onValueChange={(value) =>
@@ -317,7 +317,7 @@ export function UserFormModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Designation</label>
+            <Label className="pl-4 block">Designation</Label>
             <Input
               placeholder="e.g., Software Engineer, Student"
               value={formData.designation}
@@ -328,7 +328,7 @@ export function UserFormModal({
           </div>
 
           <div className="space-y-3">
-            <Label className="text-sm font-medium">User Type <span className="text-destructive">*</span></Label>
+            <Label className="pl-4 block">User Type <span className="text-destructive">*</span></Label>
             <RadioGroup
               value={formData.userType}
               onValueChange={(value) =>

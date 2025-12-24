@@ -928,13 +928,13 @@ export default function UserDashboard() {
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <NotificationBell />
               <Link href="/user/feedback" className="hidden sm:block">
-                <Button variant="outline" size="sm" className="rounded-full">
-                  <MessageSquare className="mr-2 h-4 w-4" />
+                <Button variant="outline" size="sm" className="rounded-full" title="Feedback" aria-label="Feedback">
+                  <MessageSquare className="h-4 w-4" />
                   <span className="hidden sm:inline">Feedback</span>
                 </Button>
               </Link>
               <Link href="/user/feedback" className="sm:hidden">
-                <Button variant="outline" size="icon" className="rounded-full">
+                <Button variant="outline" size="icon" className="rounded-full" title="Feedback" aria-label="Feedback">
                   <MessageSquare className="h-4 w-4" />
                 </Button>
               </Link>
@@ -949,6 +949,8 @@ export default function UserDashboard() {
                     variant="ghost"
                     size="icon"
                     className="rounded-full"
+                    title="User menu"
+                    aria-label="User menu"
                   >
                     <Avatar
                       alt={user?.name}
@@ -956,31 +958,42 @@ export default function UserDashboard() {
                     />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuItem className="cursor-pointer" asChild>
-                    <Link href="/user/profile" className="flex items-center">
-                      <User className="mr-2 h-4 w-4" />
-                      Profile
+                <DropdownMenuContent align="end" className="w-48 p-0 rounded-lg shadow-lg">
+                  <div className="flex items-center gap-3 p-2 border-b bg-muted/50">
+                    <Avatar
+                      alt={user?.name}
+                      fallback={user?.name?.[0] ?? "U"}
+                    />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm font-semibold leading-tight truncate">{user?.name ?? "User"}</span>
+                      <span className="text-xs text-muted-foreground truncate">{user?.email ?? "user@example.com"}</span>
+                    </div>
+                  </div>
+                  <DropdownMenuItem className="cursor-pointer mt-1" asChild>
+                    <Link href="/user/profile" className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span>Profile</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem className="cursor-pointer" asChild>
-                    <Link href="/user/my-feedback" className="flex items-center">
-                      <FileText className="mr-2 h-4 w-4" />
-                      My Feedback
+                    <Link href="/user/my-feedback" className="flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                      <span>My Feedback</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem className="cursor-pointer" asChild>
-                    <Link href="/user/transactions" className="flex items-center">
-                      <Receipt className="mr-2 h-4 w-4" />
-                      Transactions
+                    <Link href="/user/transactions" className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <span>Transactions</span>
                     </Link>
                   </DropdownMenuItem>
+                  <hr />
                   <DropdownMenuItem
-                    className="cursor-pointer text-destructive focus:text-destructive"
+                    className="cursor-pointer text-destructive focus:text-destructive gap-2"
                     onClick={logout}
                   >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
+                    <LogOut className="h-4 w-4" />
+                    <span>Logout</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

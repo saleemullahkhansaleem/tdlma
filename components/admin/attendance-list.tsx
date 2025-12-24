@@ -570,7 +570,7 @@ export function AttendanceList({ attendance, onUpdate, onItemUpdate, selectedDat
               return (
                 <TableRow key={item.userId}>
                   <TableCell className="min-w-[150px] sm:min-w-[200px]">
-                    <div className="font-medium uppercase tracking-tight">
+                    <div className="font-medium uppercase tracking-tight truncate">
                       {item.user.name}
                       {item.guestCount !== undefined && item.guestCount !== null && item.guestCount > 0 && (
                         <Badge

@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createFeedback } from "@/lib/api/client";
 import { FeedbackCategory, FeedbackType } from "@/lib/types/feedback";
 import { useRouter } from "next/navigation";
+import { Label } from "../ui/label";
 
 const CATEGORIES: FeedbackCategory[] = [
   "Food",
@@ -118,7 +119,7 @@ export function FeedbackForm() {
           )}
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Category</label>
+            <Label className="pl-4 block">Category</Label>
             <Select
               value={formData.category}
               onValueChange={(value) =>
@@ -139,7 +140,7 @@ export function FeedbackForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Type</label>
+            <Label className="pl-4 block">Type</Label>
             <Select
               value={formData.type}
               onValueChange={(value) =>
@@ -160,7 +161,7 @@ export function FeedbackForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Title</label>
+            <Label className="pl-4 block">Title</Label>
             <Input
               placeholder="Brief title for your feedback"
               value={formData.title}
@@ -170,7 +171,7 @@ export function FeedbackForm() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Description</label>
+            <Label className="pl-4 block">Description</Label>
             <Textarea
               placeholder="Please provide detailed feedback, suggestions, or complaints..."
               value={formData.description}
@@ -182,7 +183,7 @@ export function FeedbackForm() {
             />
           </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-col md:flex-row gap-3 pt-2">
             <Button
               type="submit"
               disabled={loading}

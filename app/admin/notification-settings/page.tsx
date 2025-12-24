@@ -378,7 +378,7 @@ export default function NotificationSettingsPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <Label className="text-sm font-medium truncate">
+                                <Label className="truncate">
                                   {pref.notificationType
                                     .replace(/_/g, " ")
                                     .replace(/\b\w/g, (l) => l.toUpperCase())}

@@ -42,6 +42,7 @@ import {
   Lightbulb,
   AlertTriangle,
 } from "lucide-react";
+import { Label } from "../ui/label";
 
 interface FeedbackResponseModalProps {
   feedback: FeedbackWithUser | null;
@@ -197,7 +198,7 @@ export function FeedbackResponseModal({
           </div>
         )}
 
-        <div className="space-y-6">
+        <div className="space-y-6 mt-4">
           {/* User Information */}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2 rounded-lg border p-4 bg-muted/30">
@@ -284,7 +285,7 @@ export function FeedbackResponseModal({
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Admin Response</h3>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Status</label>
+                <Label className="pl-4 block">Status</Label>
                 <Select
                   value={status}
                   onValueChange={(value) => setStatus(value as FeedbackStatus)}
@@ -310,7 +311,7 @@ export function FeedbackResponseModal({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Response Message</label>
+              <Label className="pl-4 block">Response Message</Label>
               <Textarea
                 placeholder="Enter your response to the user..."
                 value={response}
